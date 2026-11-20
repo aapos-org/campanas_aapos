@@ -205,10 +205,26 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // Long-running contact imports (one file at a time per process).
+        'supervisor-imports' => [
+            'connection' => 'redis-long',
+            'queue' => ['imports'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 512,
+            'tries' => 1,
+            'timeout' => 3600,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
         'production' => [
+            'supervisor-imports' => [
+                'maxProcesses' => 2,
+            ],
             'supervisor-1' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
@@ -217,6 +233,9 @@ return [
         ],
 
         'local' => [
+            'supervisor-imports' => [
+                'maxProcesses' => 1,
+            ],
             'supervisor-1' => [
                 'maxProcesses' => 3,
             ],

@@ -56,5 +56,7 @@ class DatabaseSeeder extends Seeder
 
             $user->syncRoles([$role->value]);
         }
+
+        $this->call(DemoContactsSeeder::class);
     }
 }

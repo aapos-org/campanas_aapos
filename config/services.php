@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    // Gmail OAuth (Google Cloud project, OAuth client of type "Web application", internal app on Workspace).
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // Defaults to route('connections.google.callback'); must be registered in Google Cloud.
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
+    'elasticemail' => [
+        'base_url' => env('ELASTICEMAIL_BASE_URL', 'https://api.elasticemail.com/v4'),
+    ],
+
 ];
