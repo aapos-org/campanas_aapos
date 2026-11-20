@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -39,6 +41,23 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureActions(): void
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+
+        // Only active users can log in. Lookup is not tenant-scoped (no tenant before login).
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $email = Str::lower(trim((string) $request->input(Fortify::username())));
+
+            $user = User::query()->where('email', $email)->first();
+
+            if ($user === null || ! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
+            }
+
+            if (! $user->is_active) {
+                return null;
+            }
+
+            return $user;
+        });
     }
 
     /**
@@ -75,11 +94,18 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });
 
+        // Brute-force protection:
+        //  - 5 attempts per minute per email + IP (normal typos),
+        //  - 10 attempts per 15 minutes per email from any IP (temporary account lock),
+        //  - 30 attempts per minute per IP (credential stuffing).
         RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+            $email = Str::transliterate(Str::lower(trim((string) $request->input(Fortify::username()))));
 
-            return Limit::perMinute(5)->by($throttleKey);
+            return [
+                Limit::perMinute(5)->by('login:'.$email.'|'.$request->ip()),
+                Limit::perMinutes(15, 10)->by('login-account:'.$email),
+                Limit::perMinute(30)->by('login-ip:'.$request->ip()),
+            ];
         });
-
     }
 }

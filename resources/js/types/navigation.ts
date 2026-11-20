@@ -11,4 +11,13 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon;
     isActive?: boolean;
+    /** Permission required to see the item. */
+    permission?: string;
+    /** Opens outside the SPA (e.g. Horizon). */
+    external?: boolean;
+};
+
+export type NavGroup = {
+    label: string;
+    items: NavItem[];
 };

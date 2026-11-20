@@ -18,6 +18,8 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            app: { timezone: string; locale: string };
+            organization: { id: number; name: string } | null;
             auth: Auth;
             sidebarOpen: boolean;
             [key: string]: unknown;

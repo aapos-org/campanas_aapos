@@ -1,27 +1,103 @@
-# Laravel + Vue Starter Kit
+# Campañas AAPOS
 
-## Introduction
+Plataforma interna de email marketing: audiencias, campañas, reportes y migración desde Mailchimp.
 
-Our Vue starter kit provides a robust, modern starting point for building Laravel applications with a Vue frontend using [Inertia](https://inertiajs.com).
+> **Estado:** Fase 1 — base del proyecto (autenticación con 2FA, roles, auditoría, layout responsivo, CI).
+> Las decisiones de arquitectura están en [`docs/DECISIONES.md`](docs/DECISIONES.md).
 
-Inertia allows you to build modern, single-page Vue applications using classic server-side routing and controllers. This lets you enjoy the frontend power of Vue combined with the incredible backend productivity of Laravel and lightning-fast Vite compilation.
+## Stack
 
-This Vue starter kit utilizes Vue 3 and the Composition API, TypeScript, Tailwind, and the [shadcn-vue](https://www.shadcn-vue.com) component library.
+| Capa     | Tecnología                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------- |
+| Backend  | PHP 8.4, Laravel 13, Fortify (login + 2FA), spatie/laravel-permission, spatie/laravel-activitylog |
+| Frontend | Inertia 3 + Vue 3 + TypeScript, Tailwind CSS 4, componentes shadcn-vue                            |
+| Datos    | PostgreSQL 18, Redis (colas, caché, sesiones)                                                     |
+| Colas    | Laravel Horizon                                                                                   |
+| Calidad  | Pest, Larastan (nivel 8), Pint, vue-tsc, Vite+ lint/format, `composer audit`                      |
 
-## Official Documentation
+## Desarrollo local
 
-Documentation for all Laravel starter kits can be found on the [Laravel website](https://laravel.com/docs/starter-kits).
+Requisitos: **Docker** (Docker Desktop en macOS). No hace falta PHP ni PostgreSQL instalados en el equipo.
 
-## Contributing
+```bash
+cp .env.example .env
+```
 
-Thank you for considering contributing to our starter kit! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+docker run --rm -v "$PWD":/app -w /app composer:latest composer install --ignore-platform-req=ext-*
+```
 
-All contributions to the Starter Kits from now on should be made through [Maestro](https://github.com/laravel/maestro).
+```bash
+./vendor/bin/sail up -d
+```
 
-## Code of Conduct
+```bash
+./vendor/bin/sail artisan key:generate && ./vendor/bin/sail artisan migrate --seed
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+./vendor/bin/sail npm ci && ./vendor/bin/sail npm run build
+```
 
-## License
+Abre <http://localhost:8080>. Cuentas de demostración (contraseña `password`, solo entorno local):
 
-The Laravel + Vue starter kit is open-sourced software licensed under the MIT license.
+| Correo                 | Rol                                                |
+| ---------------------- | -------------------------------------------------- |
+| `admin@campanas.test`  | Administrador (se le pedirá activar 2FA al entrar) |
+| `editor@campanas.test` | Editor                                             |
+| `lector@campanas.test` | Solo lectura                                       |
+
+Servicios auxiliares:
+
+| Servicio                              | URL / puerto                                              |
+| ------------------------------------- | --------------------------------------------------------- |
+| Aplicación                            | <http://localhost:8080>                                   |
+| Mailpit (correos de prueba)           | <http://localhost:8025>                                   |
+| Horizon (colas, solo administradores) | <http://localhost:8080/horizon>                           |
+| PostgreSQL                            | `localhost:54320` (usuario `sail`, contraseña `password`) |
+| Redis                                 | `localhost:63790`                                         |
+
+Para desarrollo con recarga en caliente usa `./vendor/bin/sail npm run dev` (Vite en el puerto 5174) y, en otra terminal, `./vendor/bin/sail artisan horizon`.
+
+## Calidad y pruebas
+
+Todo el flujo de calidad (el mismo que corre GitHub Actions en cada PR):
+
+```bash
+./vendor/bin/sail composer ci
+```
+
+Incluye Pint, Larastan, lint y formato del frontend, verificación de tipos TypeScript, la suite de Pest (sobre PostgreSQL, base `testing`) y `composer audit`.
+
+Solo las pruebas:
+
+```bash
+./vendor/bin/sail artisan test
+```
+
+## Primer administrador en un servidor nuevo
+
+No existe registro público: los usuarios los invita un administrador. En una instalación nueva:
+
+```bash
+php artisan migrate --force && php artisan db:seed --force
+```
+
+```bash
+php artisan app:create-admin admin@tu-dominio.org --name="Nombre Apellido"
+```
+
+El comando crea la organización si no existe, asigna el rol de administrador y muestra un enlace de un solo uso para definir la contraseña. Al entrar, se exigirá activar la verificación en dos pasos.
+
+## Seguridad (resumen)
+
+- Inicio de sesión con límite de intentos: 5/min por correo+IP, **bloqueo de 15 min** tras 10 fallos por cuenta, 30/min por IP.
+- 2FA (TOTP) obligatoria para administradores; códigos de recuperación.
+- Roles: Administrador, Editor, Solo lectura (permisos en `app/Enums`).
+- Content-Security-Policy estricta con _nonce_ (sin `unsafe-inline` ni `unsafe-eval` en scripts) y cabeceras de endurecimiento.
+- Registro de auditoría (`audit_logs`) de accesos, cambios de usuarios y 2FA; visible en **Administración → Auditoría**.
+- Todas las tablas principales llevan `organization_id` con _scope_ global (preparado para multi-tenant).
+
+## Despliegue
+
+La guía de despliegue en Debian 13 con Apache + PHP-FPM, Supervisor y respaldos se entrega en la Fase 7 (`docs/DESPLIEGUE.md`).
