@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Public endpoints that receive posts from other sites (form embeds, RFC 8058 one-click).
+        $middleware->validateCsrfTokens(except: ['f/*', 'baja/*']);
+
         $middleware->web(prepend: [
             SecurityHeaders::class,
         ]);

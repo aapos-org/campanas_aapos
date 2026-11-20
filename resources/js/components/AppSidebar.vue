@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import {
     Activity,
     BookUser,
+    FileText,
     LayoutGrid,
     ListPlus,
     Plug,
@@ -28,6 +29,7 @@ import { dashboard } from '@/routes';
 import { index as auditIndex } from '@/routes/admin/audit';
 import { index as audiencesIndex } from '@/routes/audiences';
 import { index as fieldsIndex } from '@/routes/fields';
+import { index as formsIndex } from '@/routes/forms';
 import { index as importsIndex } from '@/routes/imports';
 import { index as suppressionsIndex } from '@/routes/suppressions';
 import { index as tagsIndex } from '@/routes/tags';
@@ -56,6 +58,12 @@ const navGroups: NavGroup[] = [
                 href: audiencesIndex(),
                 icon: BookUser,
                 permission: 'contacts.view',
+            },
+            {
+                title: 'Formularios',
+                href: formsIndex(),
+                icon: FileText,
+                permission: 'contacts.manage',
             },
             {
                 title: 'Etiquetas',

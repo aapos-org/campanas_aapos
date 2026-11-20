@@ -43,3 +43,6 @@ yarn-error.log
 /boost.json
 /opencode.json
 /opencode.jsonc
+
+# Migration report (contains masked personal data)
+/docs/migracion_informe.md
