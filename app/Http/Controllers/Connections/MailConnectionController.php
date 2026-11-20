@@ -215,6 +215,7 @@ class MailConnectionController extends Controller
             'last_verified_at' => $connection->last_verified_at?->toIso8601String(),
             'last_error' => $connection->last_error,
             'verification' => $connection->meta['verification'] ?? null,
+            'provider_tracking_locked' => (bool) ($connection->meta['provider_tracking_locked'] ?? false),
             // Only presence flags and a masked hint — never the secret itself.
             'username' => $connection->driver === MailDriver::GmailSmtp ? ($credentials['username'] ?? null) : null,
             'has_password' => filled($credentials['password'] ?? null),

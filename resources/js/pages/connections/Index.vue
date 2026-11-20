@@ -274,6 +274,16 @@ const records = [
                     </div>
 
                     <p
+                        v-if="c.provider_tracking_locked"
+                        class="rounded-md bg-muted p-3 text-muted-foreground"
+                    >
+                        Tu plan de ElasticEmail no permite desactivar su propio
+                        rastreo de aperturas y clics, así que lo mantiene
+                        activo. Los envíos funcionan con normalidad y las
+                        métricas de esta aplicación no se ven afectadas.
+                    </p>
+
+                    <p
                         v-if="c.last_error"
                         class="rounded-md bg-destructive/10 p-3 text-destructive"
                         role="status"

@@ -87,3 +87,39 @@ it('fails verification with an invalid key', function () {
 
     expect($result->ok)->toBeFalse()->and($result->message)->toContain('rechazó la clave');
 });
+
+it('retries without tracking options when the account does not allow changing them', function () {
+    Http::fakeSequence('api.elasticemail.com/v4/emails/transactional')
+        ->push(['Error' => 'You cannot change the tracking options'], 400)
+        ->push(['TransactionID' => 'tx-2', 'MessageID' => 'msg-2'])
+        ->push(['TransactionID' => 'tx-3', 'MessageID' => 'msg-3']);
+
+    $connection = MailConnection::factory()->create();
+    $driver = app(MailTransportFactory::class)->for($connection);
+
+    expect($driver->send(elasticEmail())->messageId)->toBe('msg-2')
+        ->and($connection->fresh()->meta['provider_tracking_locked'])->toBeTrue();
+
+    // Next sends skip the options straight away (one request each).
+    app(MailTransportFactory::class)->for($connection->fresh())->send(elasticEmail());
+
+    $requests = Http::recorded()->map(fn ($pair) => $pair[0]);
+    expect($requests)->toHaveCount(3)
+        ->and($requests[0]->data())->toHaveKey('Options')
+        ->and($requests[1]->data())->not->toHaveKey('Options')
+        ->and($requests[2]->data())->not->toHaveKey('Options')
+        // The retry uses a different idempotency key (same key + different body = 422).
+        ->and($requests[0]->header('Idempotency-Key')[0])->toBe('send-cr-123')
+        ->and($requests[1]->header('Idempotency-Key')[0])->toBe('send-cr-123-nt');
+});
+
+it('does not retry other 400 errors', function () {
+    Http::fake(['*' => Http::response(['Error' => 'Invalid recipient'], 400)]);
+    $connection = MailConnection::factory()->create();
+
+    expect(fn () => app(MailTransportFactory::class)->for($connection)->send(elasticEmail()))
+        ->toThrow(TransportException::class);
+
+    Http::assertSentCount(1);
+    expect($connection->fresh()->meta)->not->toHaveKey('provider_tracking_locked');
+});

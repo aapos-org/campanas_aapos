@@ -29,6 +29,7 @@ export type MailConnection = {
     last_verified_at: string | null;
     last_error: string | null;
     verification: ConnectionVerification;
+    provider_tracking_locked: boolean;
     username: string | null;
     has_password: boolean;
     api_key_hint: string | null;
