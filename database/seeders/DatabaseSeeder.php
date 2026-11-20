@@ -2,24 +2,59 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Role;
+use App\Models\Organization;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Seeds roles everywhere, and demo data only outside production.
+     *
+     * Local demo accounts (password: "password"):
+     *  - admin@campanas.test  (Administrador, must enable 2FA on first login)
+     *  - editor@campanas.test (Editor)
+     *  - lector@campanas.test (Solo lectura)
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call(RolesAndPermissionsSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        if (app()->isProduction()) {
+            return;
+        }
+
+        $organization = Organization::query()->firstOrCreate(
+            ['slug' => 'aapos'],
+            [
+                'name' => 'AAPOS',
+                'timezone' => 'America/Guatemala',
+                'locale' => 'es',
+                'physical_address' => 'Dirección de ejemplo, Ciudad de Guatemala, Guatemala',
+            ],
+        );
+
+        $accounts = [
+            ['admin@campanas.test', 'Administradora Demo', Role::Admin],
+            ['editor@campanas.test', 'Editor Demo', Role::Editor],
+            ['lector@campanas.test', 'Lector Demo', Role::Viewer],
+        ];
+
+        setPermissionsTeamId($organization->id);
+
+        foreach ($accounts as [$email, $name, $role]) {
+            $user = User::query()->firstOrCreate(
+                ['email' => $email],
+                [
+                    'organization_id' => $organization->id,
+                    'name' => $name,
+                    'password' => 'password',
+                    'email_verified_at' => now(),
+                ],
+            );
+
+            $user->syncRoles([$role->value]);
+        }
     }
 }
