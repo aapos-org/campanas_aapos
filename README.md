@@ -2,7 +2,7 @@
 
 Plataforma interna de email marketing: audiencias, campañas, reportes y migración desde Mailchimp.
 
-> **Estado:** Fase 1 — base del proyecto (autenticación con 2FA, roles, auditoría, layout responsivo, CI).
+> **Estado:** Fase 2 — conexiones de envío (Gmail SMTP, Gmail API, ElasticEmail) y Módulo 1 (audiencias, contactos, campos, etiquetas, supresión, importación CSV/XLSX y exportación).
 > Las decisiones de arquitectura están en [`docs/DECISIONES.md`](docs/DECISIONES.md).
 
 ## Stack
@@ -74,6 +74,18 @@ Solo las pruebas:
 ```bash
 ./vendor/bin/sail artisan test
 ```
+
+## Conexiones de envío
+
+| Tipo                  | Uso           | Requisitos                                                                                                                                       |
+| --------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ElasticEmail (API v4) | Envíos reales | Clave de API con permisos de envío por HTTP, ver cuenta y ver ajustes; dominio con SPF, DKIM y DMARC                                             |
+| Gmail (SMTP)          | Pruebas       | Verificación en dos pasos y contraseña de aplicación                                                                                             |
+| Gmail (OAuth)         | Pruebas       | `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` (app OAuth interna de Workspace); URI de redirección `https://<dominio>/connections/google/callback` |
+
+Gmail limita los envíos diarios; la aplicación lleva la cuenta por conexión y no supera el límite configurado.
+
+Las importaciones se procesan en la cola `imports` (Horizon, supervisor `supervisor-imports`). En desarrollo, ejecuta `./vendor/bin/sail artisan horizon` para que avancen.
 
 ## Primer administrador en un servidor nuevo
 

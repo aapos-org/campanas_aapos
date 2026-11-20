@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Activity, LayoutGrid, ScrollText, Users } from '@lucide/vue';
+import {
+    Activity,
+    BookUser,
+    LayoutGrid,
+    ListPlus,
+    Plug,
+    ScrollText,
+    ShieldBan,
+    Tag,
+    Upload,
+    Users,
+} from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -15,6 +26,12 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as auditIndex } from '@/routes/admin/audit';
+import { index as audiencesIndex } from '@/routes/audiences';
+import { index as fieldsIndex } from '@/routes/fields';
+import { index as importsIndex } from '@/routes/imports';
+import { index as suppressionsIndex } from '@/routes/suppressions';
+import { index as tagsIndex } from '@/routes/tags';
+import { index as connectionsIndex } from '@/routes/connections';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as horizonIndex } from '@/routes/horizon';
 import type { NavGroup } from '@/types';
@@ -32,8 +49,49 @@ const navGroups: NavGroup[] = [
         ],
     },
     {
+        label: 'Contactos',
+        items: [
+            {
+                title: 'Audiencias',
+                href: audiencesIndex(),
+                icon: BookUser,
+                permission: 'contacts.view',
+            },
+            {
+                title: 'Etiquetas',
+                href: tagsIndex(),
+                icon: Tag,
+                permission: 'contacts.manage',
+            },
+            {
+                title: 'Campos personalizados',
+                href: fieldsIndex(),
+                icon: ListPlus,
+                permission: 'contacts.manage',
+            },
+            {
+                title: 'Importaciones',
+                href: importsIndex(),
+                icon: Upload,
+                permission: 'contacts.manage',
+            },
+            {
+                title: 'Lista de supresión',
+                href: suppressionsIndex(),
+                icon: ShieldBan,
+                permission: 'contacts.manage',
+            },
+        ],
+    },
+    {
         label: 'Administración',
         items: [
+            {
+                title: 'Conexiones de envío',
+                href: connectionsIndex(),
+                icon: Plug,
+                permission: 'connections.manage',
+            },
             {
                 title: 'Usuarios',
                 href: usersIndex(),

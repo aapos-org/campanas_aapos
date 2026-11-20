@@ -15,6 +15,9 @@ return [
 
     'default' => env('QUEUE_CONNECTION', 'database'),
 
+    // Connection for long-running jobs (see 'redis-long'). Tests use "sync".
+    'long_running_connection' => env('QUEUE_LONG_CONNECTION', 'redis-long'),
+
     /*
     |--------------------------------------------------------------------------
     | Queue Connections
@@ -71,6 +74,17 @@ return [
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
             'block_for' => null,
             'after_commit' => false,
+        ],
+
+        // Long-running jobs (contact imports, Mailchimp migration). retry_after must exceed
+        // the job timeout, otherwise Redis re-delivers a job that is still running.
+        'redis-long' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'imports',
+            'retry_after' => 3700,
+            'block_for' => null,
+            'after_commit' => true,
         ],
 
         'deferred' => [
