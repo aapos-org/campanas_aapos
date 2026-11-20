@@ -2,7 +2,7 @@
 
 Plataforma interna de email marketing: audiencias, campañas, reportes y migración desde Mailchimp.
 
-> **Estado:** Fase 2 — conexiones de envío (Gmail SMTP, Gmail API, ElasticEmail) y Módulo 1 (audiencias, contactos, campos, etiquetas, supresión, importación CSV/XLSX y exportación).
+> **Estado:** Fase 3 — migración de Mailchimp (extracción cifrada, ensayo en seco, carga y verificación) y Módulo 2 (formularios con doble opt-in, preferencias y baja en un clic). Fases anteriores: conexiones de envío y Módulo 1.
 > Las decisiones de arquitectura están en [`docs/DECISIONES.md`](docs/DECISIONES.md).
 
 ## Stack
@@ -86,6 +86,14 @@ Solo las pruebas:
 Gmail limita los envíos diarios; la aplicación lleva la cuenta por conexión y no supera el límite configurado.
 
 Las importaciones se procesan en la cola `imports` (Horizon, supervisor `supervisor-imports`). En desarrollo, ejecuta `./vendor/bin/sail artisan horizon` para que avancen.
+
+## Migración desde Mailchimp
+
+Guía paso a paso en [`docs/MIGRACION.md`](docs/MIGRACION.md): `mailchimp:extract` → `mailchimp:load --dry-run` → `mailchimp:load` → `mailchimp:verify`.
+
+## Formularios públicos
+
+Cada formulario tiene una página alojada (`/f/{código}`) y códigos para insertar (JavaScript, iframe o HTML). Para el captcha opcional configura `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` (Cloudflare Turnstile). Los correos de confirmación salen por la conexión de envío predeterminada.
 
 ## Primer administrador en un servidor nuevo
 

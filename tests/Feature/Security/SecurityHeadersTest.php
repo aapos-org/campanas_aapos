@@ -30,3 +30,9 @@ it('sends hardening headers', function () {
         ->assertHeader('X-Frame-Options', 'DENY')
         ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 });
+
+it('only allows framing pages of our own domain inside the panel', function () {
+    $csp = (string) $this->get(route('login'))->headers->get('Content-Security-Policy');
+
+    expect($csp)->toContain("frame-src 'self';")->toContain("frame-ancestors 'none'");
+});

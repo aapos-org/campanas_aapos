@@ -123,3 +123,15 @@ it('does not retry other 400 errors', function () {
     Http::assertSentCount(1);
     expect($connection->fresh()->meta)->not->toHaveKey('provider_tracking_locked');
 });
+
+it('explains account-level errors in Spanish', function () {
+    Http::fake(['*' => Http::response(['Error' => 'Error: Account requires card verification. Verify the account with a card in the dashboard to start sending.'], 400)]);
+
+    try {
+        app(MailTransportFactory::class)->for(MailConnection::factory()->create())->send(elasticEmail());
+        $this->fail('Expected exception');
+    } catch (TransportException $e) {
+        expect($e->getMessage())->toContain('verificar una tarjeta')->toContain('Settings → Billing')
+            ->and($e->retryable)->toBeFalse();
+    }
+});
