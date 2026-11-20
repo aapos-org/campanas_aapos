@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Http;
  *  - Send: POST /emails/transactional (one recipient per call, content already personalized).
  *    Uses the `Idempotency-Key` header so a retried job never sends twice.
  *  - Open/click tracking of ElasticEmail is disabled: the app tracks with signed links (D10).
+ *    Some account plans don't allow changing it ("You cannot change the tracking options"):
+ *    the driver then resends without the options and remembers it in the connection
+ *    (meta.provider_tracking_locked), so the next sends skip them.
  *  - Verify: GET /account (key works) + GET /domains (SPF/DKIM/DMARC/MX of the sender domain).
  */
 class ElasticEmailDriver implements MailTransportDriver
@@ -44,22 +47,25 @@ class ElasticEmailDriver implements MailTransportDriver
                 'Headers' => $email->headers !== [] ? $email->headers : null,
                 'Postback' => $email->reference,
             ], fn ($value) => $value !== null),
-            'Options' => [
-                'TrackOpens' => false,
-                'TrackClicks' => false,
-            ],
         ];
 
-        $request = $this->client();
+        $lockedTracking = (bool) ($this->connection->meta['provider_tracking_locked'] ?? false);
 
-        if ($email->reference !== null) {
-            $request = $request->withHeaders(['Idempotency-Key' => mb_substr('send-'.$email->reference, 0, 255)]);
+        if (! $lockedTracking) {
+            $body['Options'] = ['TrackOpens' => false, 'TrackClicks' => false];
         }
 
-        try {
-            $response = $request->post('emails/transactional', $body);
-        } catch (ConnectionException $e) {
-            throw new TransportException('No se pudo conectar con ElasticEmail.', true, $e);
+        $response = $this->post($body, $email->reference);
+
+        if ($response->failed() && ! $lockedTracking && $this->isTrackingLockedError($response)) {
+            // Not sent: retry once without Options, with a different idempotency key
+            // (ElasticEmail rejects a reused key with a different body).
+            unset($body['Options']);
+            $this->connection->forceFill([
+                'meta' => array_merge($this->connection->meta, ['provider_tracking_locked' => true]),
+            ])->save();
+
+            $response = $this->post($body, $email->reference !== null ? $email->reference.'-nt' : null);
         }
 
         if ($response->failed()) {
@@ -119,6 +125,32 @@ class ElasticEmailDriver implements MailTransportDriver
             $ok ? "Clave válida y dominio {$domain} verificado (SPF y DKIM)." : "Clave válida, pero faltan registros DNS del dominio {$domain}.",
             $details,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     *
+     * @throws TransportException
+     */
+    private function post(array $body, ?string $reference): Response
+    {
+        $request = $this->client();
+
+        if ($reference !== null) {
+            $request = $request->withHeaders(['Idempotency-Key' => mb_substr('send-'.$reference, 0, 255)]);
+        }
+
+        try {
+            return $request->post('emails/transactional', $body);
+        } catch (ConnectionException $e) {
+            throw new TransportException('No se pudo conectar con ElasticEmail.', true, $e);
+        }
+    }
+
+    private function isTrackingLockedError(Response $response): bool
+    {
+        return $response->status() === 400
+            && str_contains(mb_strtolower($response->body()), 'tracking options');
     }
 
     private function client(): PendingRequest
