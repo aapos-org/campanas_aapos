@@ -1,34 +1,75 @@
 <script setup lang="ts">
 import { Head, Link, router, usePoll } from '@inertiajs/vue3';
-import { Copy, Pause, Play, XCircle } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { Copy, Download, Pause, Play, XCircle } from '@lucide/vue';
+import { watchDebounced } from '@vueuse/core';
+import { computed, reactive, ref, watch } from 'vue';
 import CampaignStatusBadge from '@/components/CampaignStatusBadge.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import Pagination from '@/components/Pagination.vue';
+import BarChart from '@/components/reports/BarChart.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useFormat } from '@/composables/useFormat';
 import {
     cancel,
     duplicate,
+    exportMethod as exportReport,
     index,
     pause,
     preview,
     resume,
+    show,
     unschedule,
 } from '@/routes/campaigns';
-import type { CampaignDetail } from '@/types';
+import { show as contactShow } from '@/routes/contacts';
+import type { CampaignDetail, Paginated } from '@/types';
+
+type RecipientRow = {
+    id: number;
+    contact_id: number | null;
+    email: string;
+    name: string;
+    status: string;
+    status_label: string;
+    sent_at: string | null;
+    opens: number;
+    clicks: number;
+    bounce: 'duro' | 'suave' | null;
+    unsubscribed: boolean;
+    complained: boolean;
+    last_activity_at: string | null;
+    error: string | null;
+};
 
 const props = defineProps<{
     campaign: CampaignDetail;
     stats: {
+        sent: number;
+        delivered: number;
         opens: number;
         unique_opens: number;
         clicks: number;
         unique_clicks: number;
+        hard_bounces: number;
+        soft_bounces: number;
+        complaints: number;
+        unsubscribes: number;
+        failed: number;
         pending: number;
     };
+    links: { url: string; clicks: number; unique_clicks: number }[];
+    timeline: {
+        unit: 'hour' | 'day';
+        points: { at: string; opens: number; clicks: number }[];
+    } | null;
+    recipients: Paginated<RecipientRow> | null;
+    filters: { activity: string; q: string };
+    activityOptions: Record<string, string>;
     canSend: boolean;
     canManage: boolean;
+    canReport: boolean;
 }>();
 
 defineOptions({
@@ -41,7 +82,7 @@ const active = computed(() =>
 );
 const { stop } = usePoll(
     3000,
-    { only: ['campaign', 'stats'] },
+    { only: ['campaign', 'stats', 'timeline'] },
     { autoStart: props.campaign.status === 'sending' },
 );
 watch(
@@ -65,6 +106,38 @@ const rate = (n: number) =>
         ? `${Math.round((n * 1000) / props.campaign.sent_count) / 10} %`
         : '—';
 const confirmingCancel = ref(false);
+
+const filter = reactive({ ...props.filters });
+watchDebounced(
+    filter,
+    () =>
+        router.get(
+            show.url(props.campaign.id),
+            {
+                activity: filter.activity || undefined,
+                q: filter.q || undefined,
+            },
+            {
+                only: ['recipients', 'filters'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        ),
+    { debounce: 300 },
+);
+const exportUrl = computed(() =>
+    exportReport.url(props.campaign.id, {
+        query: { activity: filter.activity || undefined },
+    }),
+);
+const series = (key: 'opens' | 'clicks') =>
+    (props.timeline?.points ?? []).map((p) => ({
+        label: p.at,
+        value: p[key],
+    }));
+const selectClass =
+    'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30';
 const historic = computed(
     () => props.campaign.report_summary as Record<string, any> | null,
 );
@@ -177,6 +250,46 @@ const historic = computed(
                 </dd>
             </div>
         </dl>
+        <dl
+            v-if="!campaign.is_historic && stats.sent"
+            class="grid grid-cols-2 gap-3 sm:grid-cols-5"
+        >
+            <div class="rounded-xl border p-3">
+                <dt class="text-xs text-muted-foreground">
+                    Entregados (proveedor)
+                </dt>
+                <dd class="text-xl font-semibold tabular-nums">
+                    {{ number(stats.delivered) }}
+                </dd>
+            </div>
+            <div class="rounded-xl border p-3">
+                <dt class="text-xs text-muted-foreground">Rebotes duros</dt>
+                <dd class="text-xl font-semibold tabular-nums">
+                    {{ number(stats.hard_bounces) }}
+                </dd>
+            </div>
+            <div class="rounded-xl border p-3">
+                <dt class="text-xs text-muted-foreground">Rebotes suaves</dt>
+                <dd class="text-xl font-semibold tabular-nums">
+                    {{ number(stats.soft_bounces) }}
+                </dd>
+            </div>
+            <div class="rounded-xl border p-3">
+                <dt class="text-xs text-muted-foreground">Quejas de spam</dt>
+                <dd class="text-xl font-semibold tabular-nums">
+                    {{ number(stats.complaints) }}
+                </dd>
+            </div>
+            <div class="rounded-xl border p-3">
+                <dt class="text-xs text-muted-foreground">Bajas</dt>
+                <dd class="text-xl font-semibold tabular-nums">
+                    {{ number(stats.unsubscribes) }}
+                    <span class="text-sm font-normal text-muted-foreground">{{
+                        rate(stats.unsubscribes)
+                    }}</span>
+                </dd>
+            </div>
+        </dl>
         <dl v-else-if="historic" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div class="rounded-xl border p-3">
                 <dt class="text-xs text-muted-foreground">Enviados</dt>
@@ -208,6 +321,183 @@ const historic = computed(
             Apple Mail) cargan las imágenes automáticamente. Los clics son una
             medida más fiable.
         </p>
+
+        <section
+            v-if="canReport && timeline?.points.length"
+            class="grid gap-6 rounded-xl border p-4 md:grid-cols-2"
+            aria-label="Actividad en el tiempo"
+        >
+            <BarChart
+                :title="`Aperturas por ${timeline.unit === 'hour' ? 'hora' : 'día'}`"
+                :points="series('opens')"
+                value-label="aperturas"
+            />
+            <BarChart
+                :title="`Clics por ${timeline.unit === 'hour' ? 'hora' : 'día'}`"
+                :points="series('clicks')"
+                value-label="clics"
+            />
+        </section>
+
+        <section
+            v-if="canReport && links.length"
+            class="space-y-2"
+            aria-labelledby="s-links"
+        >
+            <h2 id="s-links" class="font-medium">Enlaces más visitados</h2>
+            <div class="overflow-x-auto rounded-xl border">
+                <table class="w-full text-sm">
+                    <thead class="bg-muted/50 text-left text-muted-foreground">
+                        <tr>
+                            <th class="px-3 py-2 font-medium">Enlace</th>
+                            <th class="px-3 py-2 text-right font-medium">
+                                Clics únicos
+                            </th>
+                            <th class="px-3 py-2 text-right font-medium">
+                                Clics totales
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="l in links" :key="l.url" class="border-t">
+                            <td class="max-w-[28rem] truncate px-3 py-2">
+                                <a
+                                    :href="l.url"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="underline-offset-2 hover:underline"
+                                    >{{ l.url }}</a
+                                >
+                            </td>
+                            <td class="px-3 py-2 text-right tabular-nums">
+                                {{ number(l.unique_clicks) }}
+                            </td>
+                            <td class="px-3 py-2 text-right tabular-nums">
+                                {{ number(l.clicks) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section
+            v-if="canReport && recipients"
+            class="space-y-3"
+            aria-labelledby="s-recipients"
+        >
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+                <h2 id="s-recipients" class="font-medium">Destinatarios</h2>
+                <div class="flex flex-wrap gap-2">
+                    <label class="sr-only" for="r-activity">Actividad</label>
+                    <select
+                        id="r-activity"
+                        v-model="filter.activity"
+                        :class="selectClass"
+                    >
+                        <option value="">Todos</option>
+                        <option
+                            v-for="(label, key) in activityOptions"
+                            :key="key"
+                            :value="key"
+                        >
+                            {{ label }}
+                        </option>
+                    </select>
+                    <label class="sr-only" for="r-q">Buscar correo</label>
+                    <Input
+                        id="r-q"
+                        v-model="filter.q"
+                        type="search"
+                        placeholder="Buscar correo"
+                        class="w-48"
+                    />
+                    <Button variant="secondary" as-child
+                        ><a :href="exportUrl"
+                            ><Download aria-hidden="true" />Exportar CSV</a
+                        ></Button
+                    >
+                </div>
+            </div>
+            <div class="overflow-x-auto rounded-xl border">
+                <table class="w-full text-sm">
+                    <thead class="bg-muted/50 text-left text-muted-foreground">
+                        <tr>
+                            <th class="px-3 py-2 font-medium">Correo</th>
+                            <th class="px-3 py-2 font-medium">Envío</th>
+                            <th class="px-3 py-2 text-right font-medium">
+                                Aperturas
+                            </th>
+                            <th class="px-3 py-2 text-right font-medium">
+                                Clics
+                            </th>
+                            <th class="px-3 py-2 font-medium">Eventos</th>
+                            <th class="px-3 py-2 font-medium">
+                                Última actividad
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-if="!recipients.data.length">
+                            <td
+                                colspan="6"
+                                class="px-3 py-6 text-center text-muted-foreground"
+                            >
+                                No hay destinatarios con ese filtro.
+                            </td>
+                        </tr>
+                        <tr
+                            v-for="r in recipients.data"
+                            :key="r.id"
+                            class="border-t"
+                        >
+                            <td class="px-3 py-2">
+                                <Link
+                                    v-if="r.contact_id"
+                                    :href="contactShow(r.contact_id)"
+                                    class="underline-offset-2 hover:underline"
+                                    >{{ r.email }}</Link
+                                >
+                                <span v-else>{{ r.email }}</span>
+                                <span
+                                    v-if="r.name"
+                                    class="block text-xs text-muted-foreground"
+                                    >{{ r.name }}</span
+                                >
+                            </td>
+                            <td class="px-3 py-2" :title="r.error ?? undefined">
+                                {{ r.status_label }}
+                            </td>
+                            <td class="px-3 py-2 text-right tabular-nums">
+                                {{ number(r.opens) }}
+                            </td>
+                            <td class="px-3 py-2 text-right tabular-nums">
+                                {{ number(r.clicks) }}
+                            </td>
+                            <td class="space-x-1 px-3 py-2">
+                                <Badge v-if="r.bounce" variant="destructive"
+                                    >Rebote {{ r.bounce }}</Badge
+                                >
+                                <Badge v-if="r.complained" variant="destructive"
+                                    >Spam</Badge
+                                >
+                                <Badge v-if="r.unsubscribed" variant="outline"
+                                    >Baja</Badge
+                                >
+                            </td>
+                            <td
+                                class="px-3 py-2 whitespace-nowrap text-muted-foreground"
+                            >
+                                {{ dateTime(r.last_activity_at) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <Pagination :page="recipients" />
+        </section>
 
         <div class="flex flex-wrap gap-2">
             <template v-if="canSend && active">

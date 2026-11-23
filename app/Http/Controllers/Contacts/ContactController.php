@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Contacts;
 
 use App\Enums\ContactStatus;
+use App\Enums\EventType;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Audience;
 use App\Models\AuditLog;
+use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\MergeField;
 use App\Models\Subscription;
@@ -124,10 +126,49 @@ class ContactController extends Controller
             ] : null,
             'statuses' => ContactStatus::options(),
             'activity' => $activity,
-            // Campaign history arrives with Module 3/4.
-            'campaigns' => [],
+            'campaigns' => $this->campaignHistory($contact),
             'canManage' => $request->user()?->can(Permission::ContactsManage->value) ?? false,
         ]);
+    }
+
+    /**
+     * Last campaigns sent to the contact with their activity (opens, clicks, bounces…).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function campaignHistory(Contact $contact): array
+    {
+        $activity = DB::table('email_events')
+            ->where('contact_id', $contact->id)
+            ->whereNotNull('campaign_recipient_id')
+            ->selectRaw('campaign_recipient_id')
+            ->selectRaw("count(*) FILTER (WHERE type = 'open') as opens")
+            ->selectRaw("count(*) FILTER (WHERE type = 'click') as clicks")
+            ->selectRaw("string_agg(DISTINCT type, ',') FILTER (WHERE type IN ('bounce_hard', 'bounce_soft', 'complaint', 'unsubscribe')) as issues")
+            ->groupBy('campaign_recipient_id');
+
+        return array_values(CampaignRecipient::query()
+            ->where('campaign_recipients.contact_id', $contact->id)
+            ->join('campaigns', 'campaigns.id', '=', 'campaign_recipients.campaign_id')
+            ->leftJoinSub($activity, 'a', 'a.campaign_recipient_id', '=', 'campaign_recipients.id')
+            ->whereNull('campaigns.deleted_at')
+            ->orderByDesc('campaign_recipients.sent_at')->orderByDesc('campaign_recipients.id')
+            ->limit(50)
+            ->get(['campaign_recipients.*', 'campaigns.name as campaign_name', 'a.opens', 'a.clicks', 'a.issues'])
+            ->map(function (CampaignRecipient $r) {
+                $issues = array_filter(explode(',', (string) $r->getAttribute('issues')));
+
+                return [
+                    'id' => $r->id,
+                    'campaign_id' => $r->campaign_id,
+                    'campaign' => (string) $r->getAttribute('campaign_name'),
+                    'status_label' => $r->status->label(),
+                    'sent_at' => $r->sent_at?->toIso8601String(),
+                    'opens' => (int) $r->getAttribute('opens'),
+                    'clicks' => (int) $r->getAttribute('clicks'),
+                    'issues' => array_values(array_map(fn (string $t) => EventType::from($t)->label(), $issues)),
+                ];
+            })->all());
     }
 
     public function edit(Contact $contact): Response

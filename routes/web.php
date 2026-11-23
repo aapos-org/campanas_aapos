@@ -3,6 +3,7 @@
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WebhookCallController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
 use App\Http\Controllers\Campaigns\CampaignController;
 use App\Http\Controllers\Campaigns\TemplateController;
@@ -20,6 +21,8 @@ use App\Http\Controllers\Imports\ImportController;
 use App\Http\Controllers\PublicSite\PreferencesController;
 use App\Http\Controllers\PublicSite\PublicFormController;
 use App\Http\Controllers\PublicSite\TrackingController;
+use App\Http\Controllers\PublicSite\WebhookController;
+use App\Http\Controllers\Reports\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard')->name('home');
@@ -59,6 +62,11 @@ Route::get('t/o/{token}/{signature}.gif', [TrackingController::class, 'open'])
 Route::get('t/c/{token}/{link}/{signature}', [TrackingController::class, 'click'])
     ->where(['token' => '[a-f0-9]{32}', 'link' => '[a-f0-9]{16}', 'signature' => '[a-f0-9]{24}'])
     ->name('track.click');
+
+// ElasticEmail notifications (secret token in the URL; CSRF-exempt).
+Route::match(['get', 'post'], 'webhooks/elasticemail/{token}', [WebhookController::class, 'elasticEmail'])
+    ->middleware('throttle:600,1')
+    ->name('webhooks.elasticemail');
 
 // ---------------------------------------------------------------- panel
 Route::middleware(['auth'])->group(function () {
@@ -147,6 +155,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('campaigns/{campaign}/preview', [CampaignController::class, 'preview'])->name('campaigns.preview');
     });
 
+    // Module 4: reports.
+    Route::middleware('permission:'.Permission::ReportsView->value)->group(function () {
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('campaigns/{campaign}/export', [CampaignController::class, 'export'])
+            ->middleware(['permission:'.Permission::ContactsView->value, 'throttle:10,1'])->name('campaigns.export');
+    });
+
     Route::middleware('permission:'.Permission::ContactsView->value)->group(function () {
         Route::get('audiences', [AudienceController::class, 'index'])->name('audiences.index');
         Route::get('audiences/{audience}', [AudienceController::class, 'show'])->name('audiences.show');
@@ -154,6 +169,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::middleware('permission:'.Permission::ConnectionsManage->value)->group(function () {
+        Route::get('webhooks', [WebhookCallController::class, 'index'])->name('webhooks.index');
         Route::get('connections/google/callback', [GoogleOAuthController::class, 'callback'])->name('connections.google.callback');
         Route::get('connections/{connection}/google', [GoogleOAuthController::class, 'redirect'])->name('connections.google.redirect');
         Route::post('connections/{connection}/verify', [MailConnectionController::class, 'verify'])

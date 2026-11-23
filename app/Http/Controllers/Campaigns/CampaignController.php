@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Campaigns;
 
 use App\Enums\CampaignStatus;
-use App\Enums\EventType;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Mail\Transport\MailTransportFactory;
@@ -11,6 +10,7 @@ use App\Mail\Transport\OutgoingEmail;
 use App\Mail\Transport\TransportException;
 use App\Models\Audience;
 use App\Models\Campaign;
+use App\Models\CampaignRecipient;
 use App\Models\Contact;
 use App\Models\MailConnection;
 use App\Models\Organization;
@@ -21,6 +21,7 @@ use App\Services\Campaigns\CampaignRenderer;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\ContentPreparer;
 use App\Services\Campaigns\PreSendChecklist;
+use App\Services\Reports\CampaignReport;
 use App\Services\Sending\DailySendQuota;
 use App\Support\Audit;
 use App\Support\Tenancy\CurrentOrganization;
@@ -30,12 +31,16 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use League\Csv\EscapeFormula;
+use League\Csv\Writer;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CampaignController extends Controller
 {
@@ -340,32 +345,68 @@ class CampaignController extends Controller
         return back();
     }
 
-    public function show(Campaign $campaign): Response
+    public function show(Request $request, Campaign $campaign, CampaignReport $report): Response
     {
         $campaign->load(['audience', 'mailConnection']);
-
-        $events = DB::table('email_events')->where('campaign_id', $campaign->id)
-            ->selectRaw('type, count(*) as total, count(DISTINCT campaign_recipient_id) as uniques')
-            ->groupBy('type')->get()->keyBy('type');
-
-        $metric = fn (EventType $type, string $field = 'total') => (int) ($events[$type->value]->{$field} ?? 0);
+        $user = $request->user();
+        $canReport = $user?->can(Permission::ReportsView->value) ?? false;
+        $filters = $request->validate([
+            'activity' => ['nullable', Rule::in(array_keys(CampaignReport::FILTERS))],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $timezone = $this->organization()->timezone;
 
         return Inertia::render('campaigns/Show', [
             'campaign' => $this->detail($campaign),
-            'stats' => [
-                'opens' => $metric(EventType::Open),
-                'unique_opens' => $metric(EventType::Open, 'uniques'),
-                'clicks' => $metric(EventType::Click),
-                'unique_clicks' => $metric(EventType::Click, 'uniques'),
+            'stats' => fn () => $report->metrics($campaign) + [
                 'pending' => $campaign->recipients()->whereIn('status', ['pending', 'sending'])->count(),
             ],
-            'canSend' => request()->user()?->can(Permission::CampaignsSend->value) ?? false,
-            'canManage' => request()->user()?->can(Permission::CampaignsManage->value) ?? false,
+            'links' => fn () => $canReport ? $report->links($campaign) : [],
+            'timeline' => fn () => $canReport ? $report->timeline($campaign, $timezone) : null,
+            'recipients' => fn () => $canReport && ! $campaign->is_historic
+                ? $report->recipients($campaign, $filters['activity'] ?? null, $filters['q'] ?? null)
+                    ->paginate(25)->withQueryString()->through(fn (CampaignRecipient $r) => CampaignReport::recipientRow($r))
+                : null,
+            'filters' => ['activity' => $filters['activity'] ?? '', 'q' => $filters['q'] ?? ''],
+            'activityOptions' => CampaignReport::FILTERS,
+            'canSend' => $user?->can(Permission::CampaignsSend->value) ?? false,
+            'canManage' => $user?->can(Permission::CampaignsManage->value) ?? false,
+            'canReport' => $canReport,
         ]);
+    }
+
+    public function export(Request $request, Campaign $campaign, CampaignReport $report, #[CurrentUser] User $user): StreamedResponse
+    {
+        $activity = $request->validate(['activity' => ['nullable', Rule::in(array_keys(CampaignReport::FILTERS))]])['activity'] ?? null;
+
+        Audit::record('campaigns.report_exported', 'Exportación del reporte de campaña', $campaign, ['activity' => $activity], $user);
+
+        $filename = Str::slug($campaign->name).'-reporte-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($campaign, $report, $activity) {
+            $csv = Writer::createFromPath('php://output', 'w');
+            $csv->setOutputBOM(Writer::BOM_UTF8);
+            $csv->addFormatter(new EscapeFormula);
+            $csv->insertOne(['correo', 'nombre', 'estado_envio', 'enviado', 'aperturas', 'clics', 'rebote', 'baja', 'queja_spam', 'ultima_actividad', 'error']);
+
+            $report->recipients($campaign, $activity)->lazyById(1000, 'campaign_recipients.id', 'id')
+                ->each(function (CampaignRecipient $r) use ($csv) {
+                    $row = CampaignReport::recipientRow($r);
+                    $csv->insertOne([
+                        $row['email'], $row['name'], $row['status_label'], $row['sent_at'], $row['opens'], $row['clicks'],
+                        $row['bounce'], $row['unsubscribed'] ? 'sí' : 'no', $row['complained'] ? 'sí' : 'no', $row['last_activity_at'], $row['error'],
+                    ]);
+                });
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function preview(Campaign $campaign, CampaignRenderer $renderer): HttpResponse
     {
+        if ($campaign->is_historic) {
+            // Mailchimp history is shown as it was sent (sanitized), without our footer.
+            return PreviewResponse::make((string) $campaign->html);
+        }
+
         $campaign->load('audience');
 
         return PreviewResponse::make($renderer->render($campaign, $this->organization(), $campaign->audience, null, null)->html);

@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import {
     Activity,
+    BarChart3,
     BookUser,
     FileText,
     LayoutTemplate,
@@ -14,6 +15,7 @@ import {
     Tag,
     Upload,
     Users,
+    Webhook,
 } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -40,6 +42,8 @@ import { index as tagsIndex } from '@/routes/tags';
 import { index as connectionsIndex } from '@/routes/connections';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as horizonIndex } from '@/routes/horizon';
+import { index as reportsIndex } from '@/routes/reports';
+import { index as webhooksIndex } from '@/routes/webhooks';
 import type { NavGroup } from '@/types';
 
 // Each module adds its entries here as it is built.
@@ -68,6 +72,12 @@ const navGroups: NavGroup[] = [
                 href: templatesIndex(),
                 icon: LayoutTemplate,
                 permission: 'campaigns.manage',
+            },
+            {
+                title: 'Reportes',
+                href: reportsIndex(),
+                icon: BarChart3,
+                permission: 'reports.view',
             },
         ],
     },
@@ -119,6 +129,12 @@ const navGroups: NavGroup[] = [
                 title: 'Conexiones de envío',
                 href: connectionsIndex(),
                 icon: Plug,
+                permission: 'connections.manage',
+            },
+            {
+                title: 'Webhooks',
+                href: webhooksIndex(),
+                icon: Webhook,
                 permission: 'connections.manage',
             },
             {

@@ -5,6 +5,8 @@ use App\Enums\FieldType;
 use App\Enums\Role;
 use App\Enums\SuppressionReason;
 use App\Models\Audience;
+use App\Models\Campaign;
+use App\Models\CampaignLink;
 use App\Models\Contact;
 use App\Models\MergeField;
 use App\Models\Subscription;
@@ -228,4 +230,22 @@ it('retries through the sequential path when a parallel request is rate-limited'
     $this->artisan('mailchimp:extract')->assertSuccessful();
 
     expect((new MailchimpBackup)->get('reports/c1/click_details/page-0000000')['urls_clicked'])->toHaveCount(1);
+});
+
+it('loads the sent campaign history idempotently, and the dry run changes nothing', function () {
+    FakeMailchimp::install();
+    extractAndLoad($this);
+
+    $this->artisan('mailchimp:load-history', ['--dry-run' => true, '--organization' => $this->org->slug])->assertSuccessful();
+    expect(Campaign::query()->count())->toBe(0);
+
+    $this->artisan('mailchimp:load-history', ['--force' => true, '--organization' => $this->org->slug])->assertSuccessful();
+    $this->artisan('mailchimp:load-history', ['--force' => true, '--organization' => $this->org->slug])->assertSuccessful();
+
+    $campaign = Campaign::query()->sole();
+    expect($campaign->is_historic)->toBeTrue()
+        ->and($campaign->name)->toBe('Boletín enero')
+        ->and($campaign->sent_count)->toBe(2)
+        ->and($campaign->html)->toContain('Contenido')
+        ->and(CampaignLink::query()->sole()->historic_clicks)->toBe(4);
 });
