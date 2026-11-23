@@ -1,0 +1,42 @@
+<mjml>
+    <mj-head>
+        <mj-title>Mensaje</mj-title>
+        <mj-attributes>
+            <mj-all font-family="Georgia, 'Times New Roman', serif" />
+            <mj-text font-size="17px" line-height="27px" color="#111827" />
+        </mj-attributes>
+    </mj-head>
+    <mj-body background-color="#ffffff">
+        <mj-section padding="32px 24px">
+            <mj-column>
+                <mj-text>Estimado/a {{ nombre | 'amigo/a' }}:</mj-text>
+                <mj-text
+                    >Escribe aquí un mensaje personal, como una carta. Los
+                    correos de solo texto suelen sentirse más cercanos y llegan
+                    mejor a la bandeja de entrada.</mj-text
+                >
+                <mj-text>Un saludo cordial,<br />Nombre y cargo</mj-text>
+                <mj-divider
+                    border-width="1px"
+                    border-color="#e5e7eb"
+                    padding-top="24px"
+                />
+                <mj-text
+                    font-family="Arial, Helvetica, sans-serif"
+                    font-size="12px"
+                    line-height="18px"
+                    color="#6b7280"
+                    >{{ nombre_organizacion }} · {{ direccion_fisica }}<br /><a
+                        href="{{ enlace_baja }}"
+                        style="color: #6b7280"
+                        >Darme de baja</a
+                    >
+                    ·
+                    <a href="{{ preferencias }}" style="color: #6b7280"
+                        >Preferencias</a
+                    ></mj-text
+                >
+            </mj-column>
+        </mj-section>
+    </mj-body>
+</mjml>

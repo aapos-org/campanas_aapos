@@ -4,6 +4,8 @@ use App\Enums\Permission;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
+use App\Http\Controllers\Campaigns\CampaignController;
+use App\Http\Controllers\Campaigns\TemplateController;
 use App\Http\Controllers\Connections\GoogleOAuthController;
 use App\Http\Controllers\Connections\MailConnectionController;
 use App\Http\Controllers\Contacts\AudienceController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Imports\ExportController;
 use App\Http\Controllers\Imports\ImportController;
 use App\Http\Controllers\PublicSite\PreferencesController;
 use App\Http\Controllers\PublicSite\PublicFormController;
+use App\Http\Controllers\PublicSite\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard')->name('home');
@@ -48,6 +51,14 @@ Route::middleware(['signed', 'throttle:30,1'])->whereNumber(['contact', 'audienc
     Route::get('baja/{contact}/{audience}/{hash}', [PreferencesController::class, 'unsubscribeShow'])->name('unsubscribe.show');
     Route::post('baja/{contact}/{audience}/{hash}', [PreferencesController::class, 'unsubscribe'])->name('unsubscribe.store');
 });
+
+// Open pixel and click tracking (signed; target read from campaign_links).
+Route::get('t/o/{token}/{signature}.gif', [TrackingController::class, 'open'])
+    ->where(['token' => '[a-f0-9]{32}', 'signature' => '[a-f0-9]{24}'])
+    ->name('track.open');
+Route::get('t/c/{token}/{link}/{signature}', [TrackingController::class, 'click'])
+    ->where(['token' => '[a-f0-9]{32}', 'link' => '[a-f0-9]{16}', 'signature' => '[a-f0-9]{24}'])
+    ->name('track.click');
 
 // ---------------------------------------------------------------- panel
 Route::middleware(['auth'])->group(function () {
@@ -98,6 +109,42 @@ Route::middleware(['auth'])->group(function () {
         Route::post('imports/{import}/start', [ImportController::class, 'start'])->name('imports.start');
         Route::post('imports/{import}/cancel', [ImportController::class, 'cancel'])->name('imports.cancel');
         Route::get('imports/{import}/report', [ImportController::class, 'report'])->name('imports.report');
+    });
+
+    // Module 3: templates and campaigns.
+    Route::middleware('permission:'.Permission::CampaignsManage->value)->group(function () {
+        Route::get('templates', [TemplateController::class, 'index'])->name('templates.index');
+        Route::post('templates', [TemplateController::class, 'store'])->name('templates.store');
+        Route::get('templates/{template}/edit', [TemplateController::class, 'edit'])->name('templates.edit');
+        Route::put('templates/{template}', [TemplateController::class, 'update'])->name('templates.update');
+        Route::post('templates/{template}/duplicate', [TemplateController::class, 'duplicate'])->name('templates.duplicate');
+        Route::delete('templates/{template}', [TemplateController::class, 'destroy'])->name('templates.destroy');
+        Route::get('templates/{template}/preview', [TemplateController::class, 'preview'])->name('templates.preview');
+
+        Route::post('campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
+        Route::get('campaigns/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit');
+        Route::put('campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
+        Route::get('campaigns/{campaign}/content', [CampaignController::class, 'content'])->name('campaigns.content');
+        Route::put('campaigns/{campaign}/content', [CampaignController::class, 'updateContent'])->name('campaigns.content.update');
+        Route::post('campaigns/{campaign}/template', [CampaignController::class, 'applyTemplate'])->name('campaigns.template');
+        Route::get('campaigns/{campaign}/review', [CampaignController::class, 'review'])->name('campaigns.review');
+        Route::post('campaigns/{campaign}/test', [CampaignController::class, 'sendTest'])->middleware('throttle:10,1')->name('campaigns.test');
+        Route::post('campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate'])->name('campaigns.duplicate');
+        Route::delete('campaigns/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
+    });
+
+    Route::middleware('permission:'.Permission::CampaignsSend->value)->group(function () {
+        Route::post('campaigns/{campaign}/send', [CampaignController::class, 'send'])->name('campaigns.send');
+        Route::post('campaigns/{campaign}/unschedule', [CampaignController::class, 'unschedule'])->name('campaigns.unschedule');
+        Route::post('campaigns/{campaign}/pause', [CampaignController::class, 'pause'])->name('campaigns.pause');
+        Route::post('campaigns/{campaign}/resume', [CampaignController::class, 'resume'])->name('campaigns.resume');
+        Route::post('campaigns/{campaign}/cancel', [CampaignController::class, 'cancel'])->name('campaigns.cancel');
+    });
+
+    Route::middleware('permission:'.Permission::CampaignsView->value)->group(function () {
+        Route::get('campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
+        Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->name('campaigns.show');
+        Route::get('campaigns/{campaign}/preview', [CampaignController::class, 'preview'])->name('campaigns.preview');
     });
 
     Route::middleware('permission:'.Permission::ContactsView->value)->group(function () {
