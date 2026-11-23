@@ -2,6 +2,7 @@
 
 namespace App\Services\Mailchimp;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,34 @@ class MailchimpBackup
      */
     public function put(string $key, array $data): void
     {
-        $this->disk()->put($this->path($key), Crypt::encryptString((string) json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)));
+        // Atomic: write a temporary file and rename it, so an interrupted run never
+        // leaves a half-written file that would look complete on resume.
+        $path = $this->path($key);
+        $temporary = $path.'.'.bin2hex(random_bytes(4)).'.tmp';
+
+        $this->disk()->put($temporary, Crypt::encryptString((string) json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)));
+        $this->disk()->move($temporary, $path);
+    }
+
+    /**
+     * Like get(), but returns null (and removes the file) when it cannot be decrypted or decoded,
+     * so the extraction downloads it again.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function tryGet(string $key): ?array
+    {
+        if (! $this->has($key)) {
+            return null;
+        }
+
+        try {
+            return $this->get($key);
+        } catch (DecryptException|\JsonException) {
+            $this->disk()->delete($this->path($key));
+
+            return null;
+        }
     }
 
     /**

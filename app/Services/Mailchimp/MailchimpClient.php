@@ -3,6 +3,7 @@
 namespace App\Services\Mailchimp;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -87,6 +88,50 @@ class MailchimpClient
                 (string) ($response->json('detail') ?? $response->json('title') ?? mb_substr($response->body(), 0, 200)),
             ));
         }
+    }
+
+    /**
+     * Several GETs at once (Mailchimp allows up to 10 simultaneous connections).
+     * A request that fails is retried through get(), with its backoff.
+     *
+     * @param  array<string, array{0: string, 1: array<string, scalar|null>}>  $requests  key => [path, query]
+     * @return array<string, array<string, mixed>>
+     */
+    public function getMany(array $requests): array
+    {
+        if ($requests === []) {
+            return [];
+        }
+
+        $responses = Http::pool(function (Pool $pool) use ($requests) {
+            foreach ($requests as $key => [$path, $query]) {
+                $pool->as($key)
+                    ->baseUrl($this->baseUrl())
+                    ->withBasicAuth('campanas', $this->apiKey)
+                    ->acceptJson()
+                    ->timeout(120)
+                    ->connectTimeout(15)
+                    ->get(ltrim($path, '/'), array_filter($query, fn ($v) => $v !== null));
+            }
+        });
+
+        $results = [];
+
+        foreach ($requests as $key => [$path, $query]) {
+            $response = $responses[$key] ?? null;
+
+            if ($response instanceof Response && $response->successful()) {
+                /** @var array<string, mixed> $json */
+                $json = $response->json() ?? [];
+                $results[$key] = $json;
+            } else {
+                // Network error, 429 or 5xx (or anything else): sequential path with retries;
+                // a permanent error is reported there with its message.
+                $results[$key] = $this->get($path, $query);
+            }
+        }
+
+        return $results;
     }
 
     private function isRetryable(Response $response): bool

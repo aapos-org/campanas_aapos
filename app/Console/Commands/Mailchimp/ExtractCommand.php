@@ -15,7 +15,8 @@ class ExtractCommand extends Command
         {--snapshot=default : Nombre del respaldo (carpeta en storage/app/private/mailchimp)}
         {--without-campaigns : No descargar campañas ni reportes}
         {--without-activity : No descargar destinatarios ni actividad por correo (más rápido)}
-        {--campaigns-since= : Solo campañas enviadas desde esta fecha (AAAA-MM-DD)}';
+        {--campaigns-since= : Solo campañas enviadas desde esta fecha (AAAA-MM-DD)}
+        {--concurrency=8 : Consultas simultáneas a Mailchimp al descargar campañas (máx. 10)}';
 
     protected $description = 'Descarga la cuenta de Mailchimp (solo lectura) a un respaldo cifrado y reanudable';
 
@@ -37,6 +38,7 @@ class ExtractCommand extends Command
                     'campaigns' => ! $this->option('without-campaigns'),
                     'activity' => ! $this->option('without-activity'),
                     'campaigns_since' => is_string($since) && $since !== '' ? $since.'T00:00:00+00:00' : null,
+                    'concurrency' => (int) $this->option('concurrency'),
                 ]);
         } catch (Throwable $e) {
             $this->error($e->getMessage());
