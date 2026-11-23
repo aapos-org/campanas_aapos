@@ -55,12 +55,12 @@ class LoadHistoryCommand extends Command
             ['Nuevas', $stats['created']],
             ['Actualizadas', $stats['updated']],
             ['Sin contenido HTML en Mailchimp', $stats['without_content']],
-            ['Sin audiencia migrada', $stats['without_audience']],
+            ['Sin audiencia (borrada o no migrada)', $stats['without_audience']],
             ['Enlaces con clics', $stats['links']],
         ]);
 
         if ($stats['without_audience'] > 0) {
-            $this->warn('Hay campañas cuya audiencia aún no está migrada: ejecuta antes mailchimp:load y vuelve a cargar el historial para enlazarlas.');
+            $this->warn('Hay campañas sin audiencia: su audiencia se borró en Mailchimp o aún no se migró (en ese caso, ejecuta mailchimp:load y vuelve a cargar el historial).');
         }
 
         $this->line(sprintf(
