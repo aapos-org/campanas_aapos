@@ -43,6 +43,17 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    // Mailchimp migration (read-only use). Dedicated key; revoke it after the migration.
+    'mailchimp' => [
+        'api_key' => env('MAILCHIMP_API_KEY'),
+    ],
+
+    // Cloudflare Turnstile (anti-bot for public forms). Optional.
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'elasticemail' => [
         'base_url' => env('ELASTICEMAIL_BASE_URL', 'https://api.elasticemail.com/v4'),
     ],

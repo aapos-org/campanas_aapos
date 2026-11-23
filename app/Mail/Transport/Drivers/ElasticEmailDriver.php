@@ -26,6 +26,20 @@ use Illuminate\Support\Facades\Http;
  */
 class ElasticEmailDriver implements MailTransportDriver
 {
+    /**
+     * Known account-level errors (lowercase fragment => explanation in Spanish).
+     *
+     * @var array<string, string>
+     */
+    private const array ACCOUNT_ERRORS = [
+        'card verification' => 'Tu cuenta de ElasticEmail debe verificar una tarjeta antes de poder enviar. Entra al panel de ElasticEmail (Settings → Billing / Account), verifica la tarjeta y vuelve a intentarlo.',
+        'not verified' => 'ElasticEmail indica que la cuenta o el remitente no están verificados. Revisa en su panel que la cuenta esté activa y que el dominio del remitente esté verificado.',
+        'domain is not verified' => 'ElasticEmail rechazó el dominio del remitente. Comprueba en su panel (Settings → Domains) que el dominio esté agregado y verificado.',
+        'insufficient' => 'La cuenta de ElasticEmail no tiene saldo o créditos suficientes. Recárgala en su panel.',
+        'suspended' => 'La cuenta de ElasticEmail está suspendida o en revisión. Contacta a su soporte.',
+        'daily limit' => 'Se alcanzó el límite diario de envío de tu plan de ElasticEmail.',
+    ];
+
     public function __construct(private readonly MailConnection $connection) {}
 
     public function send(OutgoingEmail $email): SendResult
@@ -176,12 +190,24 @@ class ElasticEmailDriver implements MailTransportDriver
     private function errorMessage(Response $response): string
     {
         $detail = $response->json('Error') ?? $response->json('error') ?? $response->json('message') ?? $response->json('title') ?? mb_substr($response->body(), 0, 200);
+        $detail = is_string($detail) ? $detail : (string) json_encode($detail);
 
-        return match (true) {
-            in_array($response->status(), [401, 403], true) => 'ElasticEmail rechazó la clave de API (o no tiene los permisos necesarios: SendHttp, ViewAccount, ViewSettings).',
-            $response->status() === 429 => 'ElasticEmail limitó las peticiones; se reintentará más tarde.',
-            default => 'ElasticEmail respondió '.$response->status().': '.(is_string($detail) ? $detail : json_encode($detail)),
-        };
+        if (in_array($response->status(), [401, 403], true)) {
+            return 'ElasticEmail rechazó la clave de API (o no tiene los permisos necesarios: SendHttp, ViewAccount, ViewSettings).';
+        }
+
+        if ($response->status() === 429) {
+            return 'ElasticEmail limitó las peticiones; se reintentará más tarde.';
+        }
+
+        // Account-level problems: they must be solved in the ElasticEmail dashboard.
+        foreach (self::ACCOUNT_ERRORS as $needle => $message) {
+            if (str_contains(mb_strtolower($detail), $needle)) {
+                return $message.' (Mensaje original: «'.mb_substr($detail, 0, 200).'»)';
+            }
+        }
+
+        return 'ElasticEmail respondió '.$response->status().': '.$detail;
     }
 
     private function bool(mixed $value): bool
