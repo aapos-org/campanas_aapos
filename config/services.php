@@ -56,6 +56,8 @@ return [
 
     'elasticemail' => [
         'base_url' => env('ELASTICEMAIL_BASE_URL', 'https://api.elasticemail.com/v4'),
+        // Secret part of the webhook URL: /webhooks/elasticemail/{token}. Generate with: php artisan app:webhook-token
+        'webhook_token' => env('ELASTICEMAIL_WEBHOOK_TOKEN'),
     ],
 
 ];

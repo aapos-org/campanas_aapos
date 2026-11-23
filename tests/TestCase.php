@@ -4,6 +4,7 @@ namespace Tests;
 
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
@@ -21,6 +22,9 @@ abstract class TestCase extends BaseTestCase
 
         // Feature tests do not need compiled front-end assets.
         $this->withoutVite();
+
+        // No test may reach a real external service: every HTTP call must be faked.
+        Http::preventStrayRequests();
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

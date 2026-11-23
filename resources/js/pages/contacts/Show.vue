@@ -23,6 +23,7 @@ import {
     index as audiencesIndex,
     show as showAudience,
 } from '@/routes/audiences';
+import { show as campaignShow } from '@/routes/campaigns';
 import { destroy, edit } from '@/routes/contacts';
 import { status as updateStatus } from '@/routes/subscriptions';
 import type { FieldDefinition, Option, TagRef } from '@/types';
@@ -65,7 +66,16 @@ const props = defineProps<{
         causer: string | null;
         created_at: string | null;
     }[];
-    campaigns: unknown[];
+    campaigns: {
+        id: number;
+        campaign_id: number;
+        campaign: string;
+        status_label: string;
+        sent_at: string | null;
+        opens: number;
+        clicks: number;
+        issues: string[];
+    }[];
     canManage: boolean;
 }>();
 
@@ -373,7 +383,42 @@ const deleteContact = () => router.delete(destroy.url(props.contact.id));
                         <CardTitle>Campañas recibidas</CardTitle>
                     </CardHeader>
                     <CardContent>
+                        <ol v-if="campaigns.length" class="space-y-3 text-sm">
+                            <li
+                                v-for="c in campaigns"
+                                :key="c.id"
+                                class="flex flex-col gap-0.5 border-l-2 pl-3"
+                            >
+                                <Link
+                                    :href="campaignShow(c.campaign_id)"
+                                    class="font-medium underline-offset-2 hover:underline"
+                                    >{{ c.campaign }}</Link
+                                >
+                                <span class="text-xs text-muted-foreground">
+                                    {{ c.status_label }} ·
+                                    {{ dateTime(c.sent_at) }} ·
+                                    {{ c.opens }}
+                                    {{
+                                        c.opens === 1 ? 'apertura' : 'aperturas'
+                                    }}
+                                    · {{ c.clicks }}
+                                    {{ c.clicks === 1 ? 'clic' : 'clics' }}
+                                </span>
+                                <span
+                                    v-if="c.issues.length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="issue in c.issues"
+                                        :key="issue"
+                                        variant="outline"
+                                        >{{ issue }}</Badge
+                                    >
+                                </span>
+                            </li>
+                        </ol>
                         <EmptyState
+                            v-else
                             :icon="Mail"
                             title="Sin campañas todavía"
                             description="Aquí aparecerán las campañas enviadas a este contacto y su actividad (aperturas, clics)."

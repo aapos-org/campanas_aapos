@@ -72,7 +72,16 @@ Orden: audiencias → campos personalizados → contactos y estados → supresio
 - `formularios_pendientes.md` — textos de los formularios para recrearlos en **Formularios**.
 - `segmentos_pendientes.md` — condiciones de los segmentos guardados (Módulo 5). Las etiquetas ya se migran como etiquetas.
 
-Las **plantillas, campañas y reportes** quedan en la tabla de staging y se cargan en la Fase 4, cuando existan sus módulos (ya están descargados y respaldados).
+### Historial de campañas
+
+Después de cargar los contactos:
+
+```bash
+php artisan mailchimp:load-history --dry-run
+php artisan mailchimp:load-history
+```
+
+Carga las campañas enviadas como **históricas de solo lectura** (contenido, resumen del reporte y clics por enlace). Es idempotente. Las plantillas de Mailchimp no se pueden importar (la API no entrega su HTML): duplica una campaña histórica como borrador para reutilizar su diseño.
 
 ### Reglas que aplica
 

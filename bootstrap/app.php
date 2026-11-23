@@ -24,7 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         // Public endpoints that receive posts from other sites (form embeds, RFC 8058 one-click).
-        $middleware->validateCsrfTokens(except: ['f/*', 'baja/*']);
+        $middleware->validateCsrfTokens(except: ['f/*', 'baja/*', 'webhooks/*']);
 
         $middleware->web(prepend: [
             SecurityHeaders::class,
