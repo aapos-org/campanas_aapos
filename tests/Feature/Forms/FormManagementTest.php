@@ -72,3 +72,12 @@ it('stops serving deleted forms and forms of deleted audiences', function () {
     $form->delete();
     $this->get(route('forms.public.show', ['slug' => $form->slug]))->assertNotFound();
 });
+
+it('lists forms that inherit double opt-in from their audience', function () {
+    $this->audience->update(['double_opt_in' => true]);
+    $this->actingAs($this->editor)->post(route('forms.store'), formPayload())->assertSessionHasNoErrors();
+
+    $this->actingAs($this->editor)->get(route('forms.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('forms.0.double_opt_in', true));
+});

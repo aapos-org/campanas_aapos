@@ -21,7 +21,7 @@ class FormController extends Controller
     public function index(): Response
     {
         return Inertia::render('forms/Index', [
-            'forms' => Form::query()->with('audience:id,name')->orderBy('name')->get()->map(fn (Form $f) => [
+            'forms' => Form::query()->with('audience:id,name,double_opt_in')->orderBy('name')->get()->map(fn (Form $f) => [
                 'id' => $f->id,
                 'name' => $f->name,
                 'audience' => $f->audience->name,
