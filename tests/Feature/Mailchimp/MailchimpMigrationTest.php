@@ -184,3 +184,48 @@ it('detects differences when the local data does not match', function () {
 
     $this->artisan('mailchimp:verify', ['--organization' => $this->org->slug, '--output' => $this->reportsDir.'/informe.md'])->assertFailed();
 });
+
+it('downloads campaigns in parallel and the result is identical to the sequential one', function () {
+    FakeMailchimp::install();
+    $this->artisan('mailchimp:extract', ['--concurrency' => 8])->assertSuccessful();
+
+    $backup = new MailchimpBackup;
+    expect($backup->get('campaigns/c1/content')['html'])->toBe('<p>Contenido</p>')
+        ->and($backup->get('reports/c1/summary')['emails_sent'])->toBe(2)
+        ->and($backup->get('reports/c1/click_details/page-0000000')['urls_clicked'][0]['total_clicks'])->toBe(4)
+        ->and($backup->isComplete('reports/c1/unsubscribed'))->toBeTrue();
+
+    Http::assertNotSent(fn (Request $r) => $r->method() !== 'GET');
+});
+
+it('downloads again a backup file that was left corrupted by an interruption', function () {
+    FakeMailchimp::install();
+    $this->artisan('mailchimp:extract')->assertSuccessful();
+
+    $backup = new MailchimpBackup;
+    Storage::disk('local')->put($backup->root().'/campaigns/c1/content.json.enc', 'cortado-a-la-mit');
+    $before = count(Http::recorded());
+
+    $this->artisan('mailchimp:extract')->assertSuccessful();
+
+    expect($backup->get('campaigns/c1/content')['html'])->toBe('<p>Contenido</p>')
+        ->and(count(Http::recorded()) - $before)->toBe(1)
+        ->and(Storage::disk('local')->allFiles($backup->root()))->each->not->toEndWith('.tmp');
+});
+
+it('retries through the sequential path when a parallel request is rate-limited', function () {
+    $api = new FakeMailchimp;
+    $calls = 0;
+    config(['services.mailchimp.api_key' => FakeMailchimp::key()]);
+    Http::fake(function (Request $request) use ($api, &$calls) {
+        if (str_contains($request->url(), 'reports/c1/click-details') && $calls++ === 0) {
+            return Http::response(['detail' => 'Too many requests'], 429);
+        }
+
+        return (new ReflectionMethod($api, 'respond'))->invoke($api, $request);
+    });
+
+    $this->artisan('mailchimp:extract')->assertSuccessful();
+
+    expect((new MailchimpBackup)->get('reports/c1/click_details/page-0000000')['urls_clicked'])->toHaveCount(1);
+});

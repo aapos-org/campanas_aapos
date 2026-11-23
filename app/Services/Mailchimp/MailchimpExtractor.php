@@ -31,7 +31,7 @@ class MailchimpExtractor
     }
 
     /**
-     * @param  array{campaigns?: bool, activity?: bool, campaigns_since?: string|null}  $options
+     * @param  array{campaigns?: bool, activity?: bool, campaigns_since?: string|null, concurrency?: int}  $options
      */
     public function run(array $options = []): void
     {
@@ -77,23 +77,67 @@ class MailchimpExtractor
             ]);
             ($this->output)(sprintf('Campañas enviadas: %d', count($campaigns)));
 
-            foreach ($campaigns as $i => $campaign) {
-                $cid = (string) $campaign['id'];
-                ($this->output)(sprintf('  Campaña %d/%d: %s', $i + 1, count($campaigns), (string) ($campaign['settings']['title'] ?? $cid)));
+            $concurrency = max(1, min(10, (int) ($options['concurrency'] ?? 8)));
+            $perGroup = max(1, intdiv($concurrency, 4));
 
-                $this->single("campaigns/{$cid}/content", "campaigns/{$cid}/content");
-                $this->single("reports/{$cid}", "reports/{$cid}/summary");
-                $this->collect("reports/{$cid}/click-details", "reports/{$cid}/click_details", 'urls_clicked', keepItems: false);
-                $this->collect("reports/{$cid}/unsubscribed", "reports/{$cid}/unsubscribed", 'unsubscribes', keepItems: false);
+            foreach (array_chunk($campaigns, $perGroup, true) as $group) {
+                $this->prefetchCampaigns($group);
 
-                if ($withActivity) {
-                    $this->collect("reports/{$cid}/sent-to", "reports/{$cid}/sent_to", 'sent_to', ['exclude_fields' => 'sent_to._links,_links'], keepItems: false);
-                    $this->collect("reports/{$cid}/email-activity", "reports/{$cid}/email_activity", 'emails', ['exclude_fields' => 'emails._links,_links'], keepItems: false);
+                foreach ($group as $i => $campaign) {
+                    $cid = (string) $campaign['id'];
+                    ($this->output)(sprintf('  Campaña %d/%d: %s', $i + 1, count($campaigns), (string) ($campaign['settings']['title'] ?? $cid)));
+                    $this->campaignDetails($cid, $withActivity);
                 }
             }
         }
 
         ($this->output)('Extracción completa. Respaldo en storage/app/private/'.$this->backup->root());
+    }
+
+    /**
+     * Downloads in parallel the first page of the four per-campaign resources that are missing.
+     *
+     * @param  array<int, array<string, mixed>>  $campaigns
+     */
+    private function prefetchCampaigns(array $campaigns): void
+    {
+        $requests = [];
+        $page = ['count' => MailchimpClient::PAGE_SIZE, 'offset' => 0];
+
+        foreach ($campaigns as $campaign) {
+            $cid = (string) $campaign['id'];
+            $wanted = [
+                "campaigns/{$cid}/content" => ["campaigns/{$cid}/content", []],
+                "reports/{$cid}/summary" => ["reports/{$cid}", []],
+                "reports/{$cid}/click_details/page-0000000" => ["reports/{$cid}/click-details", $page],
+                "reports/{$cid}/unsubscribed/page-0000000" => ["reports/{$cid}/unsubscribed", $page],
+            ];
+
+            foreach ($wanted as $key => $request) {
+                if ($this->backup->tryGet($key) === null) {
+                    $requests[$key] = $request;
+                }
+            }
+        }
+
+        foreach ($this->client->getMany($requests) as $key => $data) {
+            unset($data['_links']);
+            $this->backup->put($key, $data);
+        }
+    }
+
+    private function campaignDetails(string $cid, bool $withActivity): void
+    {
+        // Already on disk after the prefetch; only extra pages (> 1,000 items) are requested here.
+        $this->single("campaigns/{$cid}/content", "campaigns/{$cid}/content");
+        $this->single("reports/{$cid}", "reports/{$cid}/summary");
+        $this->collect("reports/{$cid}/click-details", "reports/{$cid}/click_details", 'urls_clicked', keepItems: false);
+        $this->collect("reports/{$cid}/unsubscribed", "reports/{$cid}/unsubscribed", 'unsubscribes', keepItems: false);
+
+        if ($withActivity) {
+            $this->collect("reports/{$cid}/sent-to", "reports/{$cid}/sent_to", 'sent_to', ['exclude_fields' => 'sent_to._links,_links'], keepItems: false);
+            $this->collect("reports/{$cid}/email-activity", "reports/{$cid}/email_activity", 'emails', ['exclude_fields' => 'emails._links,_links'], keepItems: false);
+        }
     }
 
     /**
@@ -127,9 +171,9 @@ class MailchimpExtractor
         do {
             $pageKey = sprintf('%s/page-%07d', $key, $offset);
 
-            if ($this->backup->has($pageKey)) {
-                $page = $this->backup->get($pageKey);
-            } else {
+            $page = $this->backup->tryGet($pageKey);
+
+            if ($page === null) {
                 $page = $this->client->get($apiPath, $query + ['count' => MailchimpClient::PAGE_SIZE, 'offset' => $offset]);
                 unset($page['_links']);
                 $this->backup->put($pageKey, $page);
@@ -162,8 +206,8 @@ class MailchimpExtractor
      */
     private function single(string $apiPath, string $key, array $query = []): array
     {
-        if ($this->backup->has($key)) {
-            return $this->backup->get($key);
+        if (($stored = $this->backup->tryGet($key)) !== null) {
+            return $stored;
         }
 
         $data = $this->client->get($apiPath, $query);
