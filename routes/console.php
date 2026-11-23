@@ -1,8 +1,12 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Scheduled campaigns (checked every minute).
+Schedule::command('campaigns:dispatch-scheduled')->everyMinute()->withoutOverlapping();
+
+// Monthly partitions of email_events, created ahead.
+Schedule::command('events:partitions --months=3')->monthlyOn(1, '02:00');
+
+// Horizon metrics snapshots.
+Schedule::command('horizon:snapshot')->everyFiveMinutes();

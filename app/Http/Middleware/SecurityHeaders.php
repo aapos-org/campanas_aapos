@@ -25,7 +25,7 @@ class SecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
         // Public forms can be embedded in iframes on other sites; everything else cannot.
-        if (! $this->isEmbeddable($request)) {
+        if (! $this->isEmbeddable($request) && ! $response->headers->has('X-Frame-Options')) {
             $response->headers->set('X-Frame-Options', 'DENY');
         }
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -54,15 +54,18 @@ class SecurityHeaders
         $hot = $this->viteDevServer();
         $embeddable = $this->isEmbeddable($request);
         $turnstile = $request->is('f/*') ? 'https://challenges.cloudflare.com' : null;
+        // The visual email editor (GrapesJS) injects <style> into its canvas iframe and shows
+        // remote images: only on those pages, inline STYLES (never scripts) and https images are allowed.
+        $editor = $request->routeIs('templates.edit', 'campaigns.content');
         $hotWs = $hot !== null ? preg_replace('#^http#', 'ws', $hot) : null;
 
         $directives = [
             'default-src' => ["'self'"],
             'script-src' => ["'self'", "'nonce-{$nonce}'", $hot, $turnstile],
             // Vue/reka-ui set inline style attributes for positioning (popovers, sidebar width).
-            'style-src' => ["'self'", "'nonce-{$nonce}'", $hot],
+            'style-src' => $editor ? ["'self'", "'unsafe-inline'", $hot] : ["'self'", "'nonce-{$nonce}'", $hot],
             'style-src-attr' => ["'unsafe-inline'"],
-            'img-src' => ["'self'", 'data:', 'blob:'],
+            'img-src' => ["'self'", 'data:', 'blob:', $editor ? 'https:' : null],
             'font-src' => ["'self'", 'data:', $hot],
             'connect-src' => ["'self'", $hot, $hotWs, $turnstile],
             // Own pages only (form preview in the editor) plus Turnstile on public forms.

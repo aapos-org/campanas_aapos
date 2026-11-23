@@ -4,3 +4,4 @@ export * from './ui';
 export * from './pagination';
 export * from './connections';
 export * from './contacts';
+export * from './campaigns';

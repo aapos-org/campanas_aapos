@@ -1,0 +1,87 @@
+<mjml>
+    <mj-head>
+        <mj-title>Boletín</mj-title>
+        <mj-attributes>
+            <mj-all font-family="Arial, Helvetica, sans-serif" />
+            <mj-text font-size="16px" line-height="24px" color="#1f2937" />
+            <mj-button
+                background-color="#0f766e"
+                color="#ffffff"
+                font-weight="bold"
+                border-radius="6px"
+            />
+        </mj-attributes>
+    </mj-head>
+    <mj-body background-color="#f4f4f5">
+        <mj-section background-color="#0f766e" padding="24px">
+            <mj-column>
+                <mj-text
+                    align="center"
+                    color="#ffffff"
+                    font-size="22px"
+                    font-weight="bold"
+                    >{{ nombre_organizacion }}</mj-text
+                >
+            </mj-column>
+        </mj-section>
+        <mj-section background-color="#ffffff" padding="32px 24px 8px">
+            <mj-column>
+                <mj-text font-size="24px" font-weight="bold"
+                    >Hola {{ nombre | 'amigo' }},</mj-text
+                >
+                <mj-text
+                    >Estas son las novedades del mes. Escribe aquí una
+                    introducción breve que invite a seguir leyendo.</mj-text
+                >
+            </mj-column>
+        </mj-section>
+        <mj-section background-color="#ffffff" padding="8px 24px">
+            <mj-column>
+                <mj-image
+                    src="https://placehold.co/560x280/e2e8f0/475569?text=Imagen"
+                    alt="Imagen de la noticia"
+                    border-radius="8px"
+                />
+                <mj-text font-size="20px" font-weight="bold"
+                    >Título de la noticia principal</mj-text
+                >
+                <mj-text>Resumen de la noticia en dos o tres líneas.</mj-text>
+                <mj-button href="https://example.org">Leer más</mj-button>
+            </mj-column>
+        </mj-section>
+        <mj-section background-color="#ffffff" padding="8px 24px 32px">
+            <mj-column>
+                <mj-text font-size="18px" font-weight="bold"
+                    >Otra noticia</mj-text
+                >
+                <mj-text>Breve descripción.</mj-text>
+            </mj-column>
+            <mj-column>
+                <mj-text font-size="18px" font-weight="bold"
+                    >Próximo evento</mj-text
+                >
+                <mj-text>Fecha, lugar y cómo participar.</mj-text>
+            </mj-column>
+        </mj-section>
+        <mj-section padding="16px 24px">
+            <mj-column>
+                <mj-text
+                    align="center"
+                    font-size="12px"
+                    line-height="18px"
+                    color="#6b7280"
+                    >{{ recordatorio_permiso }}<br />{{ nombre_organizacion }} ·
+                    {{ direccion_fisica }}<br /><a
+                        href="{{ enlace_baja }}"
+                        style="color: #6b7280"
+                        >Darme de baja</a
+                    >
+                    ·
+                    <a href="{{ preferencias }}" style="color: #6b7280"
+                        >Preferencias</a
+                    ></mj-text
+                >
+            </mj-column>
+        </mj-section>
+    </mj-body>
+</mjml>

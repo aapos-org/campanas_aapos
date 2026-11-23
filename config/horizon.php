@@ -208,8 +208,8 @@ return [
         // Long-running contact imports (one file at a time per process).
         'supervisor-imports' => [
             'connection' => 'redis-long',
-            'queue' => ['imports'],
-            'balance' => 'simple',
+            'queue' => ['emails', 'imports'],
+            'balance' => 'auto',
             'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
@@ -222,8 +222,9 @@ return [
 
     'environments' => [
         'production' => [
+            // Campaign batches and imports (long-running connection).
             'supervisor-imports' => [
-                'maxProcesses' => 2,
+                'maxProcesses' => 4,
             ],
             'supervisor-1' => [
                 'maxProcesses' => 10,
@@ -234,7 +235,7 @@ return [
 
         'local' => [
             'supervisor-imports' => [
-                'maxProcesses' => 1,
+                'maxProcesses' => 2,
             ],
             'supervisor-1' => [
                 'maxProcesses' => 3,

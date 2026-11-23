@@ -4,6 +4,8 @@ import {
     Activity,
     BookUser,
     FileText,
+    LayoutTemplate,
+    Megaphone,
     LayoutGrid,
     ListPlus,
     Plug,
@@ -27,6 +29,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as auditIndex } from '@/routes/admin/audit';
+import { index as campaignsIndex } from '@/routes/campaigns';
+import { index as templatesIndex } from '@/routes/templates';
 import { index as audiencesIndex } from '@/routes/audiences';
 import { index as fieldsIndex } from '@/routes/fields';
 import { index as formsIndex } from '@/routes/forms';
@@ -47,6 +51,23 @@ const navGroups: NavGroup[] = [
                 title: 'Panel',
                 href: dashboard(),
                 icon: LayoutGrid,
+            },
+        ],
+    },
+    {
+        label: 'Campañas',
+        items: [
+            {
+                title: 'Campañas',
+                href: campaignsIndex(),
+                icon: Megaphone,
+                permission: 'campaigns.view',
+            },
+            {
+                title: 'Plantillas',
+                href: templatesIndex(),
+                icon: LayoutTemplate,
+                permission: 'campaigns.manage',
             },
         ],
     },
