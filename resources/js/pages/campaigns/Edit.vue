@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ArrowRight, Info } from '@lucide/vue';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import CampaignSteps from '@/components/CampaignSteps.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -19,6 +19,7 @@ const props = defineProps<{
     campaign: CampaignDetail;
     audiences: { id: number; name: string }[];
     tags: { id: number; name: string }[];
+    segments: { id: number; name: string; audience_id: number }[];
     connections: {
         id: number;
         name: string;
@@ -44,6 +45,17 @@ const form = reactive({
         ? String(props.campaign.audience_id)
         : '',
     tag_ids: [...props.campaign.tag_ids],
+    segment_id: props.campaign.segment_id
+        ? String(props.campaign.segment_id)
+        : '',
+    ab_type: props.campaign.ab_type ?? '',
+    ab_sample_percent: String(props.campaign.ab_sample_percent ?? 20),
+    ab_metric: props.campaign.ab_metric ?? 'clicks',
+    ab_wait_hours: String(props.campaign.ab_wait_hours ?? 4),
+    variant_b_subject:
+        props.campaign.variants.find((v) => v.label === 'B')?.subject ?? '',
+    variant_b_from_name:
+        props.campaign.variants.find((v) => v.label === 'B')?.from_name ?? '',
     mail_connection_id: props.campaign.mail_connection_id
         ? String(props.campaign.mail_connection_id)
         : '',
@@ -54,6 +66,21 @@ const form = reactive({
     track_clicks: props.campaign.track_clicks,
 });
 const errors = ref<Record<string, string>>({});
+const audienceSegments = computed(() =>
+    props.segments.filter((sg) => String(sg.audience_id) === form.audience_id),
+);
+watch(
+    () => form.audience_id,
+    () => {
+        if (
+            !audienceSegments.value.some(
+                (sg) => String(sg.id) === form.segment_id,
+            )
+        ) {
+            form.segment_id = '';
+        }
+    },
+);
 const saving = ref(false);
 
 const connection = computed(() =>
@@ -82,6 +109,15 @@ const save = (then?: () => void) => {
             from_name: form.from_name || null,
             from_email: form.from_email || null,
             reply_to: form.reply_to || null,
+            segment_id: form.segment_id ? Number(form.segment_id) : null,
+            ab_type: form.ab_type || null,
+            ab_sample_percent: form.ab_type
+                ? Number(form.ab_sample_percent)
+                : null,
+            ab_metric: form.ab_type ? form.ab_metric : null,
+            ab_wait_hours: form.ab_type ? Number(form.ab_wait_hours) : null,
+            variant_b_subject: form.variant_b_subject || null,
+            variant_b_from_name: form.variant_b_from_name || null,
         },
         {
             preserveScroll: true,
@@ -236,10 +272,122 @@ const toggleTag = (id: number) => {
                         </button>
                     </div>
                 </fieldset>
+                <div
+                    v-if="audienceSegments.length"
+                    class="grid gap-1.5 sm:max-w-sm"
+                >
+                    <Label for="segment">Segmento (opcional)</Label>
+                    <NativeSelect id="segment" v-model="form.segment_id">
+                        <option value="">Toda la audiencia</option>
+                        <option
+                            v-for="sg in audienceSegments"
+                            :key="sg.id"
+                            :value="String(sg.id)"
+                        >
+                            {{ sg.name }}
+                        </option>
+                    </NativeSelect>
+                    <InputError :message="errors.segment_id" />
+                </div>
                 <p class="text-sm text-muted-foreground">
                     Solo reciben la campaña los contactos suscritos. Las bajas,
                     rebotes y quejas se excluyen siempre.
                 </p>
+            </section>
+
+            <section class="grid gap-4" aria-labelledby="s-ab">
+                <h2 id="s-ab" class="font-medium">Prueba A/B (opcional)</h2>
+                <div class="grid gap-1.5 sm:max-w-sm">
+                    <Label for="ab_type">¿Qué quieres probar?</Label>
+                    <NativeSelect id="ab_type" v-model="form.ab_type">
+                        <option value="">No hacer prueba A/B</option>
+                        <option value="subject">El asunto</option>
+                        <option value="from_name">
+                            El nombre del remitente
+                        </option>
+                        <option value="content">El contenido</option>
+                    </NativeSelect>
+                </div>
+                <template v-if="form.ab_type">
+                    <div v-if="form.ab_type === 'subject'" class="grid gap-1.5">
+                        <Label for="vb_subject">Asunto de la versión B</Label>
+                        <Input
+                            id="vb_subject"
+                            v-model="form.variant_b_subject"
+                            maxlength="200"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            La versión A usa el asunto principal.
+                        </p>
+                        <InputError :message="errors.variant_b_subject" />
+                    </div>
+                    <div
+                        v-if="form.ab_type === 'from_name'"
+                        class="grid gap-1.5 sm:max-w-sm"
+                    >
+                        <Label for="vb_from">Remitente de la versión B</Label>
+                        <Input
+                            id="vb_from"
+                            v-model="form.variant_b_from_name"
+                            maxlength="100"
+                        />
+                        <InputError :message="errors.variant_b_from_name" />
+                    </div>
+                    <p
+                        v-if="form.ab_type === 'content'"
+                        class="text-sm text-muted-foreground"
+                    >
+                        Al guardar podrás diseñar la versión B en el paso
+                        «Contenido».
+                    </p>
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div class="grid gap-1.5">
+                            <Label for="ab_pct">Tamaño de la muestra (%)</Label>
+                            <Input
+                                id="ab_pct"
+                                v-model="form.ab_sample_percent"
+                                type="number"
+                                min="10"
+                                max="50"
+                            />
+                            <InputError :message="errors.ab_sample_percent" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="ab_metric"
+                                >Gana la versión con más</Label
+                            >
+                            <NativeSelect
+                                id="ab_metric"
+                                v-model="form.ab_metric"
+                            >
+                                <option value="clicks">clics</option>
+                                <option value="opens">aperturas</option>
+                            </NativeSelect>
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label for="ab_wait">Esperar (horas)</Label>
+                            <Input
+                                id="ab_wait"
+                                v-model="form.ab_wait_hours"
+                                type="number"
+                                min="1"
+                                max="72"
+                            />
+                            <InputError :message="errors.ab_wait_hours" />
+                        </div>
+                    </div>
+                    <p class="text-sm text-muted-foreground">
+                        Se envía cada versión a la mitad de la muestra ({{
+                            Number(form.ab_sample_percent) / 2
+                        }}
+                        % cada una). Pasadas {{ form.ab_wait_hours }} horas, la
+                        versión con más
+                        {{
+                            form.ab_metric === 'clicks' ? 'clics' : 'aperturas'
+                        }}
+                        se envía automáticamente al resto.
+                    </p>
+                </template>
             </section>
 
             <section class="grid gap-4" aria-labelledby="s-adv">

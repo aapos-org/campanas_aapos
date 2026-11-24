@@ -23,10 +23,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $provider_id
  * @property string $token
  * @property Carbon|null $sent_at
+ * @property int|null $variant_id
+ * @property int|null $automation_run_id
+ * @property-read CampaignVariant|null $variant
  * @property-read Campaign $campaign
  * @property-read Contact|null $contact
  */
-#[Fillable(['organization_id', 'campaign_id', 'contact_id', 'subscription_id', 'email', 'status', 'attempts', 'last_error', 'message_id', 'provider_id', 'token', 'sent_at'])]
+#[Fillable(['organization_id', 'campaign_id', 'contact_id', 'subscription_id', 'email', 'status', 'attempts', 'last_error', 'message_id', 'provider_id', 'token', 'sent_at', 'variant_id', 'automation_run_id'])]
 class CampaignRecipient extends Model
 {
     use BelongsToOrganization;
@@ -53,5 +56,13 @@ class CampaignRecipient extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    /**
+     * @return BelongsTo<CampaignVariant, $this>
+     */
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(CampaignVariant::class);
     }
 }

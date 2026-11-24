@@ -5,6 +5,7 @@ import {
     BarChart3,
     BookUser,
     FileText,
+    Filter,
     LayoutTemplate,
     Megaphone,
     LayoutGrid,
@@ -38,6 +39,7 @@ import { index as fieldsIndex } from '@/routes/fields';
 import { index as formsIndex } from '@/routes/forms';
 import { index as importsIndex } from '@/routes/imports';
 import { index as suppressionsIndex } from '@/routes/suppressions';
+import { index as segmentsIndex } from '@/routes/segments';
 import { index as tagsIndex } from '@/routes/tags';
 import { index as connectionsIndex } from '@/routes/connections';
 import { index as usersIndex } from '@/routes/admin/users';
@@ -95,6 +97,12 @@ const navGroups: NavGroup[] = [
                 href: formsIndex(),
                 icon: FileText,
                 permission: 'contacts.manage',
+            },
+            {
+                title: 'Segmentos',
+                href: segmentsIndex(),
+                icon: Filter,
+                permission: 'contacts.view',
             },
             {
                 title: 'Etiquetas',

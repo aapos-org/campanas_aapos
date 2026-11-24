@@ -10,6 +10,7 @@ import MergeTagList from '@/components/email/MergeTagList.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { index, review, template as applyTemplate } from '@/routes/campaigns';
+import { content as contentPage } from '@/routes/campaigns';
 import { update as updateContent } from '@/routes/campaigns/content';
 
 const props = defineProps<{
@@ -21,7 +22,10 @@ const props = defineProps<{
         design: Record<string, unknown> | null;
         html: string | null;
         subject: string | null;
+        kind: 'regular' | 'automation';
     };
+    variant: string | null;
+    abContent: boolean;
     mergeTags: { tag: string; label: string }[];
     templates?: { id: number; name: string; editor: string }[];
     library?: { key: string; name: string; description: string }[];
@@ -51,6 +55,7 @@ const save = (then?: () => void) => {
         html: content.html,
         mjml: content.mjml,
         design: content.design as unknown as FormDataConvertible,
+        variant: props.variant,
     };
 
     router.put(updateContent.url(props.campaign.id), payload, {
@@ -155,6 +160,32 @@ const start = (data: { template_id?: number; base?: string }) =>
             <p v-if="error" class="text-sm text-destructive" role="alert">
                 {{ error }}
             </p>
+            <nav
+                v-if="abContent"
+                class="flex gap-2"
+                aria-label="Versiones de la prueba A/B"
+            >
+                <a
+                    v-for="v in ['A', 'B']"
+                    :key="v"
+                    :href="
+                        contentPage.url(campaign.id, {
+                            query: { variant: v === 'B' ? 'B' : undefined },
+                        })
+                    "
+                    :aria-current="(variant ?? 'A') === v ? 'page' : undefined"
+                    :class="[
+                        'rounded-full border px-3 py-1 text-sm',
+                        (variant ?? 'A') === v
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'hover:bg-muted',
+                    ]"
+                    >Versión {{ v }}</a
+                >
+                <span class="self-center text-xs text-muted-foreground"
+                    >Guarda antes de cambiar de versión.</span
+                >
+            </nav>
             <MergeTagList :tags="mergeTags" />
             <p class="text-sm text-muted-foreground">
                 Si no incluyes {{ '{' + '{ enlace_baja }' + '}' }}, se agregará

@@ -56,6 +56,18 @@ class PreSendChecklist
                 $connection->driver->isGmail() ? 'error' : 'warning');
         }
 
+        if ($campaign->isAbTest()) {
+            $b = $campaign->variants()->where('label', 'B')->first();
+            [$ok, $what] = match ($campaign->ab_type) {
+                'subject' => [filled($b?->subject), 'el asunto'],
+                'from_name' => [filled($b?->from_name), 'el remitente'],
+                default => [filled(strip_tags((string) $b?->html)), 'el contenido'],
+            };
+            $add('ab', $ok,
+                sprintf('Prueba A/B de %s: muestra del %d %%, gana la versión con más %s tras %d h.', $what, (int) $campaign->ab_sample_percent, $campaign->ab_metric === 'opens' ? 'aperturas' : 'clics', (int) $campaign->ab_wait_hours),
+                "Prueba A/B: falta {$what} de la versión B.");
+        }
+
         $add('test', $campaign->last_test_sent_at !== null, 'Se envió un correo de prueba.', 'Aún no envías un correo de prueba (recomendado).', 'warning');
 
         if ($checkLinks) {

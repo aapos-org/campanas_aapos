@@ -2,6 +2,8 @@ export type CampaignStatusValue =
     | 'draft'
     | 'scheduled'
     | 'sending'
+    | 'testing'
+    | 'automation'
     | 'paused'
     | 'sent'
     | 'cancelled'
@@ -43,4 +45,20 @@ export type CampaignDetail = CampaignSummary & {
     last_test_sent_at: string | null;
     timezone: string;
     report_summary: Record<string, unknown> | null;
+    kind: 'regular' | 'automation';
+    segment_id: number | null;
+    segment: string | null;
+    ab_type: 'subject' | 'from_name' | 'content' | null;
+    ab_sample_percent: number | null;
+    ab_metric: 'opens' | 'clicks' | null;
+    ab_wait_hours: number | null;
+    ab_winner_variant_id: number | null;
+    ab_decided_at: string | null;
+    variants: {
+        id: number;
+        label: string;
+        subject: string | null;
+        from_name: string | null;
+        has_content: boolean;
+    }[];
 };

@@ -103,7 +103,7 @@ class SendCampaignBatch implements ShouldQueue
                 }
 
                 /** @var CampaignRecipient $recipient */
-                $recipient = CampaignRecipient::query()->with('contact')->findOrFail($recipientId);
+                $recipient = CampaignRecipient::query()->with(['contact', 'variant'])->findOrFail($recipientId);
                 $contact = $recipient->contact;
 
                 // The person may have unsubscribed or bounced after the list was frozen.
@@ -137,12 +137,13 @@ class SendCampaignBatch implements ShouldQueue
                     return;
                 }
 
-                $email = $renderer->render($campaign, $organization, $campaign->audience, $recipient, $contact);
+                $version = $campaign->withVariant($recipient->variant);
+                $email = $renderer->render($version, $organization, $campaign->audience, $recipient, $contact);
 
                 try {
                     $result = $transport->send(new OutgoingEmail(
                         fromEmail: $campaign->from_email ?: $connection->from_email,
-                        fromName: $campaign->from_name ?: $connection->from_name,
+                        fromName: $version->from_name ?: $connection->from_name,
                         to: $recipient->email,
                         toName: $contact->full_name ?: null,
                         subject: $email->subject,

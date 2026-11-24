@@ -38,7 +38,16 @@ class CampaignSender
 
         $campaign->refresh();
         $this->links->register($campaign);
+
+        foreach ($campaign->variants as $variant) {
+            $this->links->register($campaign->withVariant($variant));
+        }
+
         $count = $this->freezer->freeze($campaign);
+
+        if ($campaign->isAbTest()) {
+            app(AbTester::class)->assignSample($campaign);
+        }
 
         Audit::record('campaigns.started', 'Envío de campaña iniciado', $campaign, ['recipients' => $count], $by, $campaign->organization_id);
 
@@ -75,7 +84,7 @@ class CampaignSender
     public function cancel(Campaign $campaign, ?User $by = null): void
     {
         $cancelled = Campaign::query()->whereKey($campaign->id)
-            ->whereIn('status', [CampaignStatus::Scheduled->value, CampaignStatus::Sending->value, CampaignStatus::Paused->value])
+            ->whereIn('status', [CampaignStatus::Scheduled->value, CampaignStatus::Sending->value, CampaignStatus::Paused->value, CampaignStatus::Testing->value])
             ->update(['status' => CampaignStatus::Cancelled->value, 'finished_at' => now()]);
 
         if ($cancelled === 0) {
@@ -102,11 +111,40 @@ class CampaignSender
         }
 
         $pending = DB::table('campaign_recipients')->where('campaign_id', $campaign->id)
-            ->where('status', RecipientStatus::Pending->value)->exists();
+            ->where('status', RecipientStatus::Pending->value)
+            ->when($campaign->abPending(), fn ($q) => $q->whereNotNull('variant_id'))
+            ->exists();
 
-        if (! $pending) {
-            $this->finish($campaign);
+        if ($pending) {
+            return;
         }
+
+        if ($campaign->abPending()) {
+            // Sample sent: wait for the results before sending the winner to the rest.
+            Campaign::query()->whereKey($campaign->id)->where('status', CampaignStatus::Sending->value)
+                ->update(['status' => CampaignStatus::Testing->value, 'ab_sample_finished_at' => now()]);
+            Audit::record('campaigns.ab_sample_sent', 'Prueba A/B: muestra enviada', $campaign, [], organizationId: $campaign->organization_id);
+
+            return;
+        }
+
+        $this->finish($campaign);
+    }
+
+    /**
+     * After the A/B winner is chosen: send it to the rest (or finish if nobody is left).
+     */
+    public function continueAfterTest(Campaign $campaign): void
+    {
+        $campaign->refresh();
+
+        if (! DB::table('campaign_recipients')->where('campaign_id', $campaign->id)->where('status', RecipientStatus::Pending->value)->exists()) {
+            $this->finish($campaign);
+
+            return;
+        }
+
+        $this->dispatchPending($campaign);
     }
 
     public function refreshCounters(Campaign $campaign): void
@@ -124,7 +162,15 @@ class CampaignSender
     private function dispatchPending(Campaign $campaign): void
     {
         $ids = DB::table('campaign_recipients')->where('campaign_id', $campaign->id)
-            ->where('status', RecipientStatus::Pending->value)->orderBy('id')->pluck('id')->all();
+            ->where('status', RecipientStatus::Pending->value)
+            ->when($campaign->abPending(), fn ($q) => $q->whereNotNull('variant_id'))
+            ->orderBy('id')->pluck('id')->all();
+
+        if ($ids === []) {
+            $this->finishIfDone($campaign);
+
+            return;
+        }
 
         $jobs = array_map(
             fn (array $chunk) => new SendCampaignBatch($campaign->id, array_map('intval', $chunk)),
