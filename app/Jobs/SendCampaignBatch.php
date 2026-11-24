@@ -75,17 +75,25 @@ class SendCampaignBatch implements ShouldQueue
 
         $campaign = Campaign::query()->withoutGlobalScopes()->with(['mailConnection', 'audience'])->find($this->campaignId);
 
-        if ($campaign === null || $campaign->status !== CampaignStatus::Sending) {
+        // Regular campaigns send while "sending"; automation emails while their flow exists.
+        $sendable = $campaign?->isAutomation() ? CampaignStatus::Automation : CampaignStatus::Sending;
+
+        if ($campaign === null || $campaign->status !== $sendable) {
             return; // paused or cancelled: pending recipients stay pending
         }
 
         $organization = Organization::query()->findOrFail($campaign->organization_id);
 
-        $current->runAs($organization, function () use ($campaign, $organization, $transports, $renderer, $quota, $events, $suppressions, $sender) {
+        $current->runAs($organization, function () use ($campaign, $sendable, $organization, $transports, $renderer, $quota, $events, $suppressions, $sender) {
             $connection = $campaign->mailConnection;
 
             if ($connection === null) {
-                $sender->pause($campaign, 'La conexión de envío de la campaña ya no existe. Elige otra y reanuda.');
+                if ($campaign->isAutomation()) {
+                    DB::table('campaign_recipients')->whereIn('id', $this->recipientIds)->where('status', RecipientStatus::Pending->value)
+                        ->update(['status' => RecipientStatus::Failed->value, 'last_error' => 'La automatización no tiene conexión de envío.', 'updated_at' => now()]);
+                } else {
+                    $sender->pause($campaign, 'La conexión de envío de la campaña ya no existe. Elige otra y reanuda.');
+                }
 
                 return;
             }
@@ -94,7 +102,7 @@ class SendCampaignBatch implements ShouldQueue
             $consecutiveErrors = 0;
 
             foreach ($this->recipientIds as $recipientId) {
-                if (Campaign::query()->whereKey($campaign->id)->toBase()->value('status') !== CampaignStatus::Sending->value) {
+                if (Campaign::query()->whereKey($campaign->id)->toBase()->value('status') !== $sendable->value) {
                     return;
                 }
 
@@ -132,6 +140,13 @@ class SendCampaignBatch implements ShouldQueue
 
                 if (! $quota->reserve($connection)) {
                     $this->unclaim($recipient);
+
+                    if ($campaign->isAutomation()) {
+                        $this->release(1800); // automation emails wait for tomorrow's quota
+
+                        return;
+                    }
+
                     $sender->pause($campaign, sprintf('Se alcanzó el límite diario de la conexión «%s» (%d). Reanuda mañana o cambia de conexión.', $connection->name, (int) $connection->daily_limit));
 
                     return;
@@ -166,7 +181,7 @@ class SendCampaignBatch implements ShouldQueue
                     $this->finishRecipient($recipient, RecipientStatus::Failed, $e->getMessage());
                     $events->record(EventType::Failed, $recipient, meta: ['error' => mb_substr($e->getMessage(), 0, 500)]);
 
-                    if (++$consecutiveErrors >= self::PAUSE_AFTER_CONSECUTIVE_ERRORS) {
+                    if (++$consecutiveErrors >= self::PAUSE_AFTER_CONSECUTIVE_ERRORS && ! $campaign->isAutomation()) {
                         $sender->pause($campaign, 'Se pausó tras varios errores seguidos: '.mb_substr($e->getMessage(), 0, 200));
 
                         return;

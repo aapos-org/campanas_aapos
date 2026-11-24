@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { index, review, template as applyTemplate } from '@/routes/campaigns';
 import { content as contentPage } from '@/routes/campaigns';
 import { update as updateContent } from '@/routes/campaigns/content';
+import { edit as automationEdit } from '@/routes/automations';
 
 const props = defineProps<{
     campaign: {
@@ -25,6 +26,7 @@ const props = defineProps<{
         kind: 'regular' | 'automation';
     };
     variant: string | null;
+    automationId: number | null;
     abContent: boolean;
     mergeTags: { tag: string; label: string }[];
     templates?: { id: number; name: string; editor: string }[];
@@ -77,7 +79,19 @@ const start = (data: { template_id?: number; base?: string }) =>
     <Head :title="`Contenido · ${campaign.name}`" />
 
     <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <CampaignSteps :campaign-id="campaign.id" current="content" />
+        <CampaignSteps
+            v-if="!automationId"
+            :campaign-id="campaign.id"
+            current="content"
+        />
+        <p v-else class="text-sm text-muted-foreground">
+            Correo de una automatización.
+            <a
+                :href="automationEdit.url(automationId)"
+                class="underline underline-offset-2"
+                >Volver a la automatización</a
+            >
+        </p>
 
         <template v-if="!hasContent">
             <h1 class="text-xl font-semibold">¿Cómo quieres empezar?</h1>
@@ -149,6 +163,17 @@ const start = (data: { template_id?: number; base?: string }) =>
                         />Guardar</Button
                     >
                     <Button
+                        v-if="automationId"
+                        :disabled="saving"
+                        @click="
+                            save(() =>
+                                router.visit(automationEdit.url(automationId!)),
+                            )
+                        "
+                        >Guardar y volver<ArrowRight aria-hidden="true"
+                    /></Button>
+                    <Button
+                        v-else
                         :disabled="saving"
                         @click="
                             save(() => router.visit(review.url(campaign.id)))

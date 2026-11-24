@@ -9,6 +9,7 @@ use App\Mail\Transport\MailTransportFactory;
 use App\Mail\Transport\OutgoingEmail;
 use App\Mail\Transport\TransportException;
 use App\Models\Audience;
+use App\Models\AutomationStep;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignVariant;
@@ -23,6 +24,7 @@ use App\Services\Campaigns\AbTester;
 use App\Services\Campaigns\CampaignRenderer;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\ContentPreparer;
+use App\Services\Campaigns\LinkRegistry;
 use App\Services\Campaigns\PreSendChecklist;
 use App\Services\Reports\CampaignReport;
 use App\Services\Sending\DailySendQuota;
@@ -51,6 +53,7 @@ class CampaignController extends Controller
     public function __construct(
         private readonly CurrentOrganization $current,
         private readonly ContentPreparer $preparer,
+        private readonly LinkRegistry $links,
     ) {}
 
     public function index(Request $request): Response
@@ -60,7 +63,8 @@ class CampaignController extends Controller
         $campaigns = Campaign::query()
             ->with('audience:id,name')
             ->where('is_historic', $historic)
-            ->orderByRaw("CASE WHEN status IN ('sending','paused','scheduled') THEN 0 ELSE 1 END")
+            ->where('kind', 'regular')
+            ->orderByRaw("CASE WHEN status IN ('sending','paused','scheduled','testing') THEN 0 ELSE 1 END")
             ->orderByDesc(DB::raw('COALESCE(finished_at, scheduled_at, updated_at)'))
             ->paginate(25)
             ->withQueryString()
@@ -97,6 +101,10 @@ class CampaignController extends Controller
 
     public function edit(Campaign $campaign): Response|RedirectResponse
     {
+        if ($campaign->isAutomation()) {
+            return $this->toAutomation($campaign);
+        }
+
         if (! $campaign->status->isEditable() || $campaign->is_historic) {
             return to_route('campaigns.show', $campaign);
         }
@@ -169,11 +177,13 @@ class CampaignController extends Controller
     public function content(Request $request, Campaign $campaign): Response|RedirectResponse|SymfonyResponse
     {
         // The editor needs its own CSP (inline styles), which only applies on a full page load.
-        if ($request->header('X-Inertia') && $campaign->status->isEditable() && ! $campaign->is_historic) {
+        $editable = $this->contentEditable($campaign);
+
+        if ($request->header('X-Inertia') && $editable) {
             return Inertia::location($request->fullUrl());
         }
 
-        if (! $campaign->status->isEditable() || $campaign->is_historic) {
+        if (! $editable) {
             return to_route('campaigns.show', $campaign);
         }
 
@@ -186,6 +196,7 @@ class CampaignController extends Controller
                 'html' => $variant ? $variant->html : $campaign->html,
             ],
             'variant' => $variant?->label,
+            'automationId' => $campaign->isAutomation() ? AutomationStep::query()->where('campaign_id', $campaign->id)->value('automation_id') : null,
             'abContent' => $campaign->ab_type === 'content',
             'mergeTags' => MergeTags::all(),
             'templates' => Template::query()->orderBy('name')->get(['id', 'name', 'editor']),
@@ -209,6 +220,11 @@ class CampaignController extends Controller
             'design' => $campaign->editor === 'visual' ? ($data['design'] ?? $target->design) : null,
             'html' => $this->preparer->prepare((string) ($data['html'] ?? '')),
         ]);
+
+        if ($campaign->isAutomation()) {
+            // Automation emails are never "started": their links are registered on save.
+            $this->links->register($campaign->refresh());
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Contenido guardado.']);
 
@@ -246,6 +262,10 @@ class CampaignController extends Controller
 
     public function review(Campaign $campaign, PreSendChecklist $checklist): Response|RedirectResponse
     {
+        if ($campaign->isAutomation()) {
+            return $this->toAutomation($campaign);
+        }
+
         if (! $campaign->status->isEditable() || $campaign->is_historic) {
             return to_route('campaigns.show', $campaign);
         }
@@ -510,9 +530,22 @@ class CampaignController extends Controller
         return $variant;
     }
 
+    /** Automation emails can be edited at any time; regular campaigns only before sending. */
+    private function contentEditable(Campaign $campaign): bool
+    {
+        return $campaign->isAutomation() || ($campaign->status->isEditable() && ! $campaign->is_historic);
+    }
+
+    private function toAutomation(Campaign $campaign): RedirectResponse
+    {
+        $automationId = AutomationStep::query()->where('campaign_id', $campaign->id)->value('automation_id');
+
+        return $automationId !== null ? to_route('automations.edit', $automationId) : to_route('campaigns.show', $campaign);
+    }
+
     private function ensureEditable(Campaign $campaign): void
     {
-        if (! $campaign->status->isEditable() || $campaign->is_historic) {
+        if (! $this->contentEditable($campaign)) {
             throw ValidationException::withMessages(['campaign' => 'Esta campaña ya no se puede modificar.']);
         }
     }

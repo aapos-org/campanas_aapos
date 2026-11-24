@@ -92,7 +92,7 @@ class SegmentRules
             $entry = ['key' => 'field:'.$field->key, 'label' => $field->label, 'group' => 'Campos personalizados', 'ops' => $ops, 'input' => $input];
 
             if ($field->type === FieldType::Select) {
-                $entry['options'] = array_values(array_map(fn ($o) => ['value' => (string) $o, 'label' => (string) $o], (array) $field->options));
+                $entry['options'] = array_map(fn ($o) => ['value' => (string) $o, 'label' => (string) $o], $field->options);
             }
 
             $fields[] = $entry;

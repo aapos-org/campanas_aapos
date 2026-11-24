@@ -90,6 +90,9 @@ class SegmentQuery
         };
     }
 
+    /**
+     * @param  literal-string  $column  one of CONTACT_COLUMNS
+     */
     private function text(Builder $q, string $column, string $op, mixed $value): void
     {
         match ($op) {

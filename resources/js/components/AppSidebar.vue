@@ -17,6 +17,7 @@ import {
     Upload,
     Users,
     Webhook,
+    Workflow,
 } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as auditIndex } from '@/routes/admin/audit';
+import { index as automationsIndex } from '@/routes/automations';
 import { index as campaignsIndex } from '@/routes/campaigns';
 import { index as templatesIndex } from '@/routes/templates';
 import { index as audiencesIndex } from '@/routes/audiences';
@@ -74,6 +76,12 @@ const navGroups: NavGroup[] = [
                 href: templatesIndex(),
                 icon: LayoutTemplate,
                 permission: 'campaigns.manage',
+            },
+            {
+                title: 'Automatizaciones',
+                href: automationsIndex(),
+                icon: Workflow,
+                permission: 'campaigns.view',
             },
             {
                 title: 'Reportes',
