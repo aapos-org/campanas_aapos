@@ -12,6 +12,7 @@ use App\Services\Google\GoogleOAuthClient;
 use App\Services\Sending\ConnectionTester;
 use App\Services\Sending\DailySendQuota;
 use App\Support\Audit;
+use App\Support\Tenancy\CurrentOrganization;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,7 +64,7 @@ class MailConnectionController extends Controller
                 'from_email' => $data['from_email'],
                 'from_name' => $data['from_name'] ?? null,
                 'reply_to' => $data['reply_to'] ?? null,
-                'daily_limit' => $data['daily_limit'] ?? null,
+                'daily_limit' => $this->cappedDailyLimit($data['daily_limit'] ?? null),
                 'credentials' => $this->credentialsFrom($driver, $data, []),
             ]);
 
@@ -106,7 +107,7 @@ class MailConnectionController extends Controller
                 'from_email' => $data['from_email'],
                 'from_name' => $data['from_name'] ?? null,
                 'reply_to' => $data['reply_to'] ?? null,
-                'daily_limit' => $data['daily_limit'] ?? null,
+                'daily_limit' => $this->cappedDailyLimit($data['daily_limit'] ?? null),
                 'credentials' => $this->credentialsFrom($connection->driver, $data, $connection->credentials ?? []),
             ]);
             $this->syncDefault($connection, (bool) ($data['is_default'] ?? $connection->is_default));
@@ -223,5 +224,20 @@ class MailConnectionController extends Controller
             'oauth_connected' => filled($credentials['refresh_token'] ?? null),
             'oauth_account' => $credentials['account'] ?? null,
         ];
+    }
+
+    /**
+     * Applies the organization's "daily_sends_per_connection" limit as a ceiling.
+     */
+    private function cappedDailyLimit(mixed $requested): ?int
+    {
+        $requested = $requested !== null ? (int) $requested : null;
+        $ceiling = app(CurrentOrganization::class)->get()?->limit('daily_sends_per_connection');
+
+        if ($ceiling === null) {
+            return $requested;
+        }
+
+        return $requested === null ? $ceiling : min($requested, $ceiling);
     }
 }

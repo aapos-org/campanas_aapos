@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Limits\ContactLimit;
 use App\Support\Tenancy\BelongsToOrganization;
 use Database\Factories\ContactFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -47,6 +48,14 @@ class Contact extends Model
         return [
             'fields' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Organization limit (runs after BelongsToOrganization has set organization_id).
+        static::creating(function (self $contact) {
+            app(ContactLimit::class)->ensureCanCreate((int) $contact->organization_id);
+        });
     }
 
     public static function normalizeEmail(string $email): string

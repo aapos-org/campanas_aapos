@@ -2,6 +2,7 @@
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WebhookCallController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
@@ -170,6 +171,14 @@ Route::middleware(['auth'])->group(function () {
         Route::put('segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
         Route::delete('segments/{segment}', [SegmentController::class, 'destroy'])->name('segments.destroy');
     });
+
+    // Module 7: organization profile, limits and usage.
+    Route::middleware('permission:'.Permission::SettingsManage->value)->group(function () {
+        Route::get('admin/organization', [OrganizationController::class, 'edit'])->name('admin.organization.edit');
+        Route::put('admin/organization', [OrganizationController::class, 'update'])->name('admin.organization.update');
+    });
+    Route::get('usage', [OrganizationController::class, 'usage'])
+        ->middleware('permission:'.Permission::ReportsView->value)->name('usage');
 
     // Module 6: automations.
     Route::middleware('permission:'.Permission::CampaignsView->value)->group(function () {

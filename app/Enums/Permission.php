@@ -19,4 +19,5 @@ enum Permission: string
     case CampaignsManage = 'campaigns.manage';
     case CampaignsSend = 'campaigns.send';
     case ReportsView = 'reports.view';
+    case ApiManage = 'api.manage';
 }

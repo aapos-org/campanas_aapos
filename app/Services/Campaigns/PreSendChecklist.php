@@ -5,6 +5,7 @@ namespace App\Services\Campaigns;
 use App\Enums\ConnectionStatus;
 use App\Models\Campaign;
 use App\Models\Organization;
+use App\Services\Limits\MonthlySendQuota;
 use App\Services\Sending\DailySendQuota;
 use App\Support\Http\SafeUrl;
 use Illuminate\Http\Client\ConnectionException;
@@ -66,6 +67,15 @@ class PreSendChecklist
             $add('ab', $ok,
                 sprintf('Prueba A/B %s: muestra del %d %%, gana la versión con más %s tras %d h.', str_replace('de el ', 'del ', 'de '.$what), (int) $campaign->ab_sample_percent, $campaign->ab_metric === 'opens' ? 'aperturas' : 'clics', (int) $campaign->ab_wait_hours),
                 "Prueba A/B: falta {$what} de la versión B.");
+        }
+
+        $monthlyRemaining = app(MonthlySendQuota::class)->remaining($organization);
+
+        if ($monthlyRemaining !== null) {
+            $add('monthly', $monthlyRemaining >= $recipients,
+                "Cupo mensual de la organización suficiente ({$monthlyRemaining} restantes).",
+                "Quedan {$monthlyRemaining} envíos del cupo mensual de la organización y hay {$recipients} destinatarios: el envío se pausará al llegar al límite.",
+                'warning');
         }
 
         $add('test', $campaign->last_test_sent_at !== null, 'Se envió un correo de prueba.', 'Aún no envías un correo de prueba (recomendado).', 'warning');

@@ -3,6 +3,8 @@ import { Link } from '@inertiajs/vue3';
 import {
     Activity,
     BarChart3,
+    Building2,
+    Gauge,
     BookUser,
     FileText,
     Filter,
@@ -31,8 +33,9 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, usage } from '@/routes';
 import { index as auditIndex } from '@/routes/admin/audit';
+import { edit as organizationEdit } from '@/routes/admin/organization';
 import { index as automationsIndex } from '@/routes/automations';
 import { index as campaignsIndex } from '@/routes/campaigns';
 import { index as templatesIndex } from '@/routes/templates';
@@ -89,6 +92,12 @@ const navGroups: NavGroup[] = [
                 icon: BarChart3,
                 permission: 'reports.view',
             },
+            {
+                title: 'Uso',
+                href: usage(),
+                icon: Gauge,
+                permission: 'reports.view',
+            },
         ],
     },
     {
@@ -141,6 +150,12 @@ const navGroups: NavGroup[] = [
     {
         label: 'Administración',
         items: [
+            {
+                title: 'Organización',
+                href: organizationEdit(),
+                icon: Building2,
+                permission: 'settings.manage',
+            },
             {
                 title: 'Conexiones de envío',
                 href: connectionsIndex(),
