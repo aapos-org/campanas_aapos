@@ -16,7 +16,6 @@ use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -231,15 +230,15 @@ class MailchimpLoader
 
             [$type, $options] = $this->fieldType($mf);
             $label = mb_substr((string) $mf['name'], 0, 100);
-            $key = mb_substr(Str::snake(Str::ascii($label)) ?: Str::lower($tag), 0, 50);
+            $base = MergeField::slugKey($label) ?: MergeField::slugKey($tag);
 
             // Unify fields with the same Mailchimp tag or the same name across audiences.
             $field = MergeField::query()->where('mailchimp_tag', $tag)->where('label', $label)->first()
-                ?? MergeField::query()->where('key', $key)->first();
+                ?? (in_array($base, MergeField::RESERVED_KEYS, true) ? null : MergeField::query()->where('key', $base)->first());
 
             if ($field === null) {
                 $field = MergeField::create([
-                    'key' => in_array($key, ['email', 'first_name', 'last_name', 'phone', 'tags', 'status', 'language'], true) ? $key.'_mc' : $key,
+                    'key' => MergeField::generateKey($label, $this->organization->id, $tag),
                     'label' => $label,
                     'type' => $type,
                     'options' => $options,

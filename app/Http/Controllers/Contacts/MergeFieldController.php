@@ -10,7 +10,6 @@ use App\Support\Audit;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -18,9 +17,6 @@ use Inertia\Response;
 
 class MergeFieldController extends Controller
 {
-    /** Keys reserved for the built-in contact columns. */
-    private const array RESERVED = ['email', 'first_name', 'last_name', 'phone', 'tags', 'status', 'language'];
-
     public function index(): Response
     {
         return Inertia::render('fields/Index', [
@@ -41,13 +37,9 @@ class MergeFieldController extends Controller
     public function store(Request $request, #[CurrentUser] User $user): RedirectResponse
     {
         $data = $this->validated($request, null);
-        $key = Str::snake(Str::ascii($data['label']));
+        $key = MergeField::generateKey($data['label'], $user->organization_id);
 
-        if (in_array($key, self::RESERVED, true) || MergeField::query()->where('key', $key)->exists()) {
-            $key .= '_'.Str::lower(Str::random(4));
-        }
-
-        $field = MergeField::create($data + ['key' => mb_substr($key, 0, 50), 'position' => (int) MergeField::query()->max('position') + 1]);
+        $field = MergeField::create($data + ['key' => $key, 'position' => (int) MergeField::query()->max('position') + 1]);
 
         Audit::record('fields.created', 'Campo personalizado creado', $field, ['key' => $field->key, 'type' => $field->type->value], $user);
         Inertia::flash('toast', ['type' => 'success', 'message' => "Campo «{$field->label}» creado."]);
