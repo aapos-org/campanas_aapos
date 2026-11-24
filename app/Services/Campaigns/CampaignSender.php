@@ -4,9 +4,11 @@ namespace App\Services\Campaigns;
 
 use App\Enums\CampaignStatus;
 use App\Enums\RecipientStatus;
+use App\Enums\WebhookEvent;
 use App\Jobs\SendCampaignBatch;
 use App\Models\Campaign;
 use App\Models\User;
+use App\Services\Webhooks\OutgoingWebhooks;
 use App\Support\Audit;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -198,6 +200,16 @@ class CampaignSender
     {
         $campaign->forceFill(['status' => CampaignStatus::Sent, 'finished_at' => now()])->save();
         $this->refreshCounters($campaign);
+        if (! $campaign->isAutomation()) {
+            app(OutgoingWebhooks::class)->dispatch($campaign->organization_id, WebhookEvent::CampaignSent, [
+                'campaign' => ['id' => $campaign->id, 'name' => $campaign->name, 'subject' => $campaign->subject, 'audience_id' => $campaign->audience_id],
+                'recipients' => $campaign->recipients_count,
+                'sent' => $campaign->sent_count,
+                'failed' => $campaign->failed_count,
+                'finished_at' => $campaign->finished_at?->toIso8601String(),
+            ]);
+        }
+
         Audit::record('campaigns.sent', 'Campaña enviada', $campaign, [
             'sent' => $campaign->sent_count,
             'failed' => $campaign->failed_count,

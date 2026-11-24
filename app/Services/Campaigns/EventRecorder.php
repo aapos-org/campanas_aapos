@@ -3,7 +3,9 @@
 namespace App\Services\Campaigns;
 
 use App\Enums\EventType;
+use App\Enums\WebhookEvent;
 use App\Models\CampaignRecipient;
+use App\Services\Webhooks\OutgoingWebhooks;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +29,7 @@ class EventRecorder
         ?string $userAgent = null,
         array $meta = [],
     ): bool {
-        return DB::transaction(function () use ($type, $recipient, $occurredAt, $dedupeKey, $linkId, $ip, $userAgent, $meta) {
+        $recorded = DB::transaction(function () use ($type, $recipient, $occurredAt, $dedupeKey, $linkId, $ip, $userAgent, $meta) {
             if ($dedupeKey !== null) {
                 $key = mb_substr($dedupeKey, 0, 191);
 
@@ -53,5 +55,31 @@ class EventRecorder
 
             return true;
         });
+
+        if ($recorded && in_array($type, [EventType::Click, EventType::HardBounce, EventType::SoftBounce], true)) {
+            $this->notify($type, $recipient, $linkId);
+        }
+
+        return $recorded;
+    }
+
+    /**
+     * Outgoing webhooks (email.clicked, email.bounced).
+     */
+    private function notify(EventType $type, CampaignRecipient $recipient, ?int $linkId): void
+    {
+        $campaign = DB::table('campaigns')->where('id', $recipient->campaign_id)->first(['id', 'name', 'kind']);
+
+        app(OutgoingWebhooks::class)->dispatch($recipient->organization_id, $type === EventType::Click ? WebhookEvent::EmailClicked : WebhookEvent::EmailBounced, array_filter([
+            'email' => $recipient->email,
+            'contact_id' => $recipient->contact_id,
+            'campaign' => $campaign !== null ? ['id' => (int) $campaign->id, 'name' => (string) $campaign->name, 'kind' => (string) $campaign->kind] : null,
+            'bounce_type' => match ($type) {
+                EventType::HardBounce => 'hard',
+                EventType::SoftBounce => 'soft',
+                default => null,
+            },
+            'url' => $linkId !== null ? DB::table('campaign_links')->where('id', $linkId)->value('url') : null,
+        ], fn ($v) => $v !== null));
     }
 }

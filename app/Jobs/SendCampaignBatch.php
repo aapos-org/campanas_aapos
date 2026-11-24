@@ -17,6 +17,7 @@ use App\Services\Campaigns\CampaignRenderer;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\EventRecorder;
 use App\Services\Contacts\SuppressionService;
+use App\Services\Limits\MonthlySendQuota;
 use App\Services\Sending\DailySendQuota;
 use App\Support\Tenancy\CurrentOrganization;
 use Illuminate\Bus\Batchable;
@@ -68,6 +69,7 @@ class SendCampaignBatch implements ShouldQueue
         EventRecorder $events,
         SuppressionService $suppressions,
         CampaignSender $sender,
+        MonthlySendQuota $monthly,
     ): void {
         if ($this->batch()?->cancelled()) {
             return;
@@ -84,7 +86,7 @@ class SendCampaignBatch implements ShouldQueue
 
         $organization = Organization::query()->findOrFail($campaign->organization_id);
 
-        $current->runAs($organization, function () use ($campaign, $sendable, $organization, $transports, $renderer, $quota, $events, $suppressions, $sender) {
+        $current->runAs($organization, function () use ($campaign, $sendable, $organization, $transports, $renderer, $quota, $events, $suppressions, $sender, $monthly) {
             $connection = $campaign->mailConnection;
 
             if ($connection === null) {
@@ -152,6 +154,21 @@ class SendCampaignBatch implements ShouldQueue
                     return;
                 }
 
+                if (! $monthly->reserve($organization)) {
+                    $quota->release($connection);
+                    $this->unclaim($recipient);
+
+                    if ($campaign->isAutomation()) {
+                        $this->release(3600); // automation emails wait until the limit allows it
+
+                        return;
+                    }
+
+                    $sender->pause($campaign, sprintf('Se alcanzó el límite mensual de %s envíos de la organización. Reanuda el próximo mes o pide a un administrador que lo amplíe.', number_format((int) $organization->limit('monthly_sends'), 0, '.', ',')));
+
+                    return;
+                }
+
                 $version = $campaign->withVariant($recipient->variant);
                 $email = $renderer->render($version, $organization, $campaign->audience, $recipient, $contact);
 
@@ -170,6 +187,7 @@ class SendCampaignBatch implements ShouldQueue
                     ));
                 } catch (TransportException $e) {
                     $quota->release($connection);
+                    $monthly->release($organization);
 
                     if ($e->retryable && $recipient->attempts < self::MAX_ATTEMPTS_PER_RECIPIENT) {
                         $this->unclaim($recipient, $e->getMessage());

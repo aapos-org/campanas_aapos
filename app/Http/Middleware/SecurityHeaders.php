@@ -51,6 +51,11 @@ class SecurityHeaders
             return "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
         }
 
+        // API documentation (admins only): Scramble's UI loads Stoplight Elements from unpkg.
+        if ($request->is('docs/api', 'docs/api/*', 'docs/api.json')) {
+            return "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https:; font-src 'self' data: https://unpkg.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
+        }
+
         $hot = $this->viteDevServer();
         $embeddable = $this->isEmbeddable($request);
         $turnstile = $request->is('f/*') ? 'https://challenges.cloudflare.com' : null;

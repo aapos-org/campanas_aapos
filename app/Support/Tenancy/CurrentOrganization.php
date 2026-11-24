@@ -27,6 +27,14 @@ class CurrentOrganization
         return $this->organization;
     }
 
+    /**
+     * For code that only runs inside an authenticated panel request or a runAs() block.
+     */
+    public function getOrFail(): Organization
+    {
+        return $this->organization ?? throw new \RuntimeException('No hay una organización activa.');
+    }
+
     public function id(): ?int
     {
         return $this->organization?->id;

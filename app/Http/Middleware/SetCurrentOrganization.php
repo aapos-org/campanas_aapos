@@ -21,6 +21,11 @@ class SetCurrentOrganization
 
         if ($user instanceof User) {
             if (! $user->is_active) {
+                if (! $request->hasSession()) {
+                    // API token of a deactivated user.
+                    return response()->json(['message' => 'El usuario dueño del token está desactivado.'], 403);
+                }
+
                 auth()->guard('web')->logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
