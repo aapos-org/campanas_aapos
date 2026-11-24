@@ -7,7 +7,6 @@ use App\Models\Contact;
 use App\Models\MergeField;
 use App\Models\Organization;
 use App\Models\Template;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -17,28 +16,6 @@ function runKeyMigration(): void
 }
 
 beforeEach(function () {
-    // Segments and automations arrive with phase 5; create a minimal shape when absent.
-    if (! Schema::hasTable('segments')) {
-        Schema::create('segments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('organization_id');
-            $table->jsonb('conditions')->default('[]');
-        });
-    }
-
-    if (! Schema::hasTable('automations')) {
-        Schema::create('automations', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('organization_id');
-            $table->jsonb('trigger_config')->default('{}');
-        });
-        Schema::create('automation_steps', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('automation_id');
-            $table->jsonb('config')->default('{}');
-        });
-    }
-
     $this->org = Organization::factory()->create();
     actAsOrganization($this->org);
 });

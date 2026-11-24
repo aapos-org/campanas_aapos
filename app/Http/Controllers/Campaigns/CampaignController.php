@@ -9,17 +9,22 @@ use App\Mail\Transport\MailTransportFactory;
 use App\Mail\Transport\OutgoingEmail;
 use App\Mail\Transport\TransportException;
 use App\Models\Audience;
+use App\Models\AutomationStep;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Models\CampaignVariant;
 use App\Models\Contact;
 use App\Models\MailConnection;
 use App\Models\Organization;
+use App\Models\Segment;
 use App\Models\Tag;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Campaigns\AbTester;
 use App\Services\Campaigns\CampaignRenderer;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\ContentPreparer;
+use App\Services\Campaigns\LinkRegistry;
 use App\Services\Campaigns\PreSendChecklist;
 use App\Services\Reports\CampaignReport;
 use App\Services\Sending\DailySendQuota;
@@ -27,9 +32,11 @@ use App\Support\Audit;
 use App\Support\Tenancy\CurrentOrganization;
 use Carbon\CarbonImmutable;
 use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -47,6 +54,7 @@ class CampaignController extends Controller
     public function __construct(
         private readonly CurrentOrganization $current,
         private readonly ContentPreparer $preparer,
+        private readonly LinkRegistry $links,
     ) {}
 
     public function index(Request $request): Response
@@ -56,7 +64,8 @@ class CampaignController extends Controller
         $campaigns = Campaign::query()
             ->with('audience:id,name')
             ->where('is_historic', $historic)
-            ->orderByRaw("CASE WHEN status IN ('sending','paused','scheduled') THEN 0 ELSE 1 END")
+            ->where('kind', 'regular')
+            ->orderByRaw("CASE WHEN status IN ('sending','paused','scheduled','testing') THEN 0 ELSE 1 END")
             ->orderByDesc(DB::raw('COALESCE(finished_at, scheduled_at, updated_at)'))
             ->paginate(25)
             ->withQueryString()
@@ -93,6 +102,10 @@ class CampaignController extends Controller
 
     public function edit(Campaign $campaign): Response|RedirectResponse
     {
+        if ($campaign->isAutomation()) {
+            return $this->toAutomation($campaign);
+        }
+
         if (! $campaign->status->isEditable() || $campaign->is_historic) {
             return to_route('campaigns.show', $campaign);
         }
@@ -101,6 +114,7 @@ class CampaignController extends Controller
             'campaign' => $this->detail($campaign),
             'audiences' => Audience::query()->orderBy('name')->get(['id', 'name']),
             'tags' => Tag::query()->orderBy('name')->get(['id', 'name']),
+            'segments' => Segment::query()->orderBy('name')->get(['id', 'name', 'audience_id']),
             'connections' => MailConnection::query()->orderByDesc('is_default')->orderBy('name')->get()
                 ->map(fn (MailConnection $c) => ['id' => $c->id, 'name' => $c->name, 'driver_label' => $c->driver->label(), 'from_email' => $c->from_email, 'status' => $c->status->value, 'daily_limit' => $c->daily_limit]),
         ]);
@@ -120,6 +134,13 @@ class CampaignController extends Controller
             'audience_id' => ['nullable', 'integer', Rule::exists('audiences', 'id')->where('organization_id', $user->organization_id)->whereNull('deleted_at')],
             'tag_ids' => ['array'],
             'tag_ids.*' => ['integer', Rule::exists('tags', 'id')->where('organization_id', $user->organization_id)],
+            'segment_id' => ['nullable', 'integer', Rule::exists('segments', 'id')->where('organization_id', $user->organization_id)->where('audience_id', (int) $request->input('audience_id'))],
+            'ab_type' => ['nullable', Rule::in(['subject', 'from_name', 'content'])],
+            'ab_sample_percent' => ['required_with:ab_type', 'nullable', 'integer', 'min:10', 'max:50'],
+            'ab_metric' => ['required_with:ab_type', 'nullable', Rule::in(['opens', 'clicks'])],
+            'ab_wait_hours' => ['required_with:ab_type', 'nullable', 'integer', 'min:1', 'max:72'],
+            'variant_b_subject' => [Rule::requiredIf($request->input('ab_type') === 'subject'), 'nullable', 'string', 'max:200'],
+            'variant_b_from_name' => [Rule::requiredIf($request->input('ab_type') === 'from_name'), 'nullable', 'string', 'max:100'],
             'mail_connection_id' => ['nullable', 'integer', Rule::exists('mail_connections', 'id')->where('organization_id', $user->organization_id)->whereNull('deleted_at')],
             'rate_per_minute' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'track_opens' => ['boolean'],
@@ -127,9 +148,27 @@ class CampaignController extends Controller
         ], [], [
             'name' => 'nombre', 'subject' => 'asunto', 'preheader' => 'texto de vista previa', 'from_name' => 'nombre del remitente',
             'from_email' => 'correo del remitente', 'reply_to' => 'responder a', 'audience_id' => 'audiencia', 'mail_connection_id' => 'conexión',
+            'segment_id' => 'segmento', 'ab_sample_percent' => 'porcentaje de la muestra', 'ab_metric' => 'criterio ganador',
+            'ab_wait_hours' => 'horas de espera', 'variant_b_subject' => 'asunto de la versión B', 'variant_b_from_name' => 'remitente de la versión B',
         ]);
 
-        $campaign->update($data + ['tag_ids' => array_values(array_map('intval', $data['tag_ids'] ?? []))]);
+        $ab = $data['ab_type'] ?? null;
+        $campaign->update([
+            'tag_ids' => array_values(array_map('intval', $data['tag_ids'] ?? [])),
+            'ab_sample_percent' => $ab ? $data['ab_sample_percent'] : null,
+            'ab_metric' => $ab ? $data['ab_metric'] : null,
+            'ab_wait_hours' => $ab ? $data['ab_wait_hours'] : null,
+        ] + Arr::except($data, ['variant_b_subject', 'variant_b_from_name']));
+
+        if ($ab === null) {
+            $campaign->variants()->delete();
+        } else {
+            $campaign->variants()->firstOrCreate(['label' => 'A']);
+            $campaign->variants()->updateOrCreate(['label' => 'B'], [
+                'subject' => $ab === 'subject' ? $data['variant_b_subject'] : null,
+                'from_name' => $ab === 'from_name' ? $data['variant_b_from_name'] : null,
+            ]);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Campaña guardada.']);
 
@@ -139,23 +178,34 @@ class CampaignController extends Controller
     public function content(Request $request, Campaign $campaign): Response|RedirectResponse|SymfonyResponse
     {
         // The editor needs its own CSP (inline styles), which only applies on a full page load.
-        if ($request->header('X-Inertia') && $campaign->status->isEditable() && ! $campaign->is_historic) {
+        $editable = $this->contentEditable($campaign);
+
+        if ($request->header('X-Inertia') && $editable) {
             return Inertia::location($request->fullUrl());
         }
 
-        if (! $campaign->status->isEditable() || $campaign->is_historic) {
+        if (! $editable) {
             return to_route('campaigns.show', $campaign);
         }
 
+        $variant = $this->contentVariant($request, $campaign);
+
         return Inertia::render('campaigns/Content', [
-            'campaign' => $campaign->only(['id', 'name', 'editor', 'mjml', 'design', 'html', 'subject']),
+            'campaign' => $campaign->only(['id', 'name', 'editor', 'subject', 'kind']) + [
+                'mjml' => $variant ? $variant->mjml : $campaign->mjml,
+                'design' => $variant ? $variant->design : $campaign->design,
+                'html' => $variant ? $variant->html : $campaign->html,
+            ],
+            'variant' => $variant?->label,
+            'automationId' => $campaign->isAutomation() ? AutomationStep::query()->where('campaign_id', $campaign->id)->value('automation_id') : null,
+            'abContent' => $campaign->ab_type === 'content',
             'mergeTags' => MergeTags::all(),
             'templates' => Template::query()->orderBy('name')->get(['id', 'name', 'editor']),
             'library' => collect(TemplateController::LIBRARY)->map(fn ($t, $key) => $t + ['key' => $key])->values(),
         ]);
     }
 
-    public function updateContent(Request $request, Campaign $campaign): RedirectResponse
+    public function updateContent(Request $request, Campaign $campaign): RedirectResponse|JsonResponse
     {
         $this->ensureEditable($campaign);
 
@@ -165,11 +215,23 @@ class CampaignController extends Controller
             'html' => ['nullable', 'string', 'max:2000000'],
         ]);
 
-        $campaign->update([
-            'mjml' => $campaign->editor === 'visual' ? ($data['mjml'] ?? $campaign->mjml) : null,
-            'design' => $campaign->editor === 'visual' ? ($data['design'] ?? $campaign->design) : null,
+        $target = $this->contentVariant($request, $campaign) ?? $campaign;
+        $target->update([
+            'mjml' => $campaign->editor === 'visual' ? ($data['mjml'] ?? $target->mjml) : null,
+            'design' => $campaign->editor === 'visual' ? ($data['design'] ?? $target->design) : null,
             'html' => $this->preparer->prepare((string) ($data['html'] ?? '')),
         ]);
+
+        if ($campaign->isAutomation()) {
+            // Automation emails are never "started": their links are registered on save.
+            $this->links->register($campaign->refresh());
+        }
+
+        // The editor saves with a JSON request: a redirect back to the editor would force a
+        // full page reload (its own CSP) and lose what the page wanted to do next.
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Contenido guardado.']);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Contenido guardado.']);
 
@@ -207,6 +269,10 @@ class CampaignController extends Controller
 
     public function review(Campaign $campaign, PreSendChecklist $checklist): Response|RedirectResponse
     {
+        if ($campaign->isAutomation()) {
+            return $this->toAutomation($campaign);
+        }
+
         if (! $campaign->status->isEditable() || $campaign->is_historic) {
             return to_route('campaigns.show', $campaign);
         }
@@ -345,7 +411,18 @@ class CampaignController extends Controller
         return back();
     }
 
-    public function show(Request $request, Campaign $campaign, CampaignReport $report): Response
+    public function decideAb(Campaign $campaign, AbTester $tester, #[CurrentUser] User $user): RedirectResponse
+    {
+        $winner = $tester->decide($campaign, $user);
+
+        Inertia::flash('toast', $winner !== null
+            ? ['type' => 'success', 'message' => "Ganó la versión {$winner->label}: se está enviando al resto."]
+            : ['type' => 'error', 'message' => 'La prueba A/B ya no está esperando ganador.']);
+
+        return back();
+    }
+
+    public function show(Request $request, Campaign $campaign, CampaignReport $report, AbTester $tester): Response
     {
         $campaign->load(['audience', 'mailConnection']);
         $user = $request->user();
@@ -367,6 +444,7 @@ class CampaignController extends Controller
                 ? $report->recipients($campaign, $filters['activity'] ?? null, $filters['q'] ?? null)
                     ->paginate(25)->withQueryString()->through(fn (CampaignRecipient $r) => CampaignReport::recipientRow($r))
                 : null,
+            'abResults' => fn () => $campaign->isAbTest() ? $tester->results($campaign) : null,
             'filters' => ['activity' => $filters['activity'] ?? '', 'q' => $filters['q'] ?? ''],
             'activityOptions' => CampaignReport::FILTERS,
             'canSend' => $user?->can(Permission::CampaignsSend->value) ?? false,
@@ -441,9 +519,40 @@ class CampaignController extends Controller
         return to_route('campaigns.index');
     }
 
+    /**
+     * Version B of a content A/B test (?variant=B). Starts as a copy of version A.
+     */
+    private function contentVariant(Request $request, Campaign $campaign): ?CampaignVariant
+    {
+        if ($campaign->ab_type !== 'content' || strtoupper((string) $request->input('variant')) !== 'B') {
+            return null;
+        }
+
+        $variant = $campaign->variants()->firstOrCreate(['label' => 'B']);
+
+        if (blank($variant->html) && blank($variant->mjml)) {
+            $variant->update(['mjml' => $campaign->mjml, 'design' => $campaign->design, 'html' => $campaign->html]);
+        }
+
+        return $variant;
+    }
+
+    /** Automation emails can be edited at any time; regular campaigns only before sending. */
+    private function contentEditable(Campaign $campaign): bool
+    {
+        return $campaign->isAutomation() || ($campaign->status->isEditable() && ! $campaign->is_historic);
+    }
+
+    private function toAutomation(Campaign $campaign): RedirectResponse
+    {
+        $automationId = AutomationStep::query()->where('campaign_id', $campaign->id)->value('automation_id');
+
+        return $automationId !== null ? to_route('automations.edit', $automationId) : to_route('campaigns.show', $campaign);
+    }
+
     private function ensureEditable(Campaign $campaign): void
     {
-        if (! $campaign->status->isEditable() || $campaign->is_historic) {
+        if (! $this->contentEditable($campaign)) {
             throw ValidationException::withMessages(['campaign' => 'Esta campaña ya no se puede modificar.']);
         }
     }
@@ -500,6 +609,22 @@ class CampaignController extends Controller
             'last_test_sent_at' => $campaign->last_test_sent_at?->toIso8601String(),
             'timezone' => $campaign->timezone,
             'report_summary' => $campaign->report_summary,
+            'kind' => $campaign->kind,
+            'segment_id' => $campaign->segment_id,
+            'segment' => $campaign->segment?->name,
+            'ab_type' => $campaign->ab_type,
+            'ab_sample_percent' => $campaign->ab_sample_percent,
+            'ab_metric' => $campaign->ab_metric,
+            'ab_wait_hours' => $campaign->ab_wait_hours,
+            'ab_winner_variant_id' => $campaign->ab_winner_variant_id,
+            'ab_decided_at' => $campaign->ab_decided_at?->toIso8601String(),
+            'variants' => $campaign->variants->map(fn (CampaignVariant $v) => [
+                'id' => $v->id,
+                'label' => $v->label,
+                'subject' => $v->subject,
+                'from_name' => $v->from_name,
+                'has_content' => filled($v->html) || filled($v->mjml),
+            ])->values(),
         ];
     }
 }

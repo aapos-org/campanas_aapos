@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, router } from '@inertiajs/vue3';
+import { toast } from 'vue-sonner';
 import { ArrowRight, Code, LayoutTemplate, Save } from '@lucide/vue';
 import { ref } from 'vue';
 import CampaignSteps from '@/components/CampaignSteps.vue';
@@ -9,8 +10,11 @@ import HtmlEditor from '@/components/email/HtmlEditor.vue';
 import MergeTagList from '@/components/email/MergeTagList.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { requestJson } from '@/lib/http';
 import { index, review, template as applyTemplate } from '@/routes/campaigns';
+import { content as contentPage } from '@/routes/campaigns';
 import { update as updateContent } from '@/routes/campaigns/content';
+import { edit as automationEdit } from '@/routes/automations';
 
 const props = defineProps<{
     campaign: {
@@ -21,7 +25,11 @@ const props = defineProps<{
         design: Record<string, unknown> | null;
         html: string | null;
         subject: string | null;
+        kind: 'regular' | 'automation';
     };
+    variant: string | null;
+    automationId: number | null;
+    abContent: boolean;
     mergeTags: { tag: string; label: string }[];
     templates?: { id: number; name: string; editor: string }[];
     library?: { key: string; name: string; description: string }[];
@@ -51,17 +59,23 @@ const save = (then?: () => void) => {
         html: content.html,
         mjml: content.mjml,
         design: content.design as unknown as FormDataConvertible,
+        variant: props.variant,
     };
 
-    router.put(updateContent.url(props.campaign.id), payload, {
-        preserveScroll: true,
-        preserveState: true,
-        onStart: () => (saving.value = true),
-        onFinish: () => (saving.value = false),
-        onError: (e) =>
-            (error.value = Object.values(e)[0] ?? 'No se pudo guardar.'),
-        onSuccess: () => then?.(),
-    });
+    saving.value = true;
+    error.value = null;
+
+    requestJson<{ message: string }>(
+        'PUT',
+        updateContent.url(props.campaign.id),
+        payload,
+    )
+        .then((response) => {
+            toast.success(response.message);
+            then?.();
+        })
+        .catch((e: Error) => (error.value = e.message))
+        .finally(() => (saving.value = false));
 };
 
 const start = (data: { template_id?: number; base?: string }) =>
@@ -72,7 +86,19 @@ const start = (data: { template_id?: number; base?: string }) =>
     <Head :title="`Contenido · ${campaign.name}`" />
 
     <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <CampaignSteps :campaign-id="campaign.id" current="content" />
+        <CampaignSteps
+            v-if="!automationId"
+            :campaign-id="campaign.id"
+            current="content"
+        />
+        <p v-else class="text-sm text-muted-foreground">
+            Correo de una automatización.
+            <a
+                :href="automationEdit.url(automationId)"
+                class="underline underline-offset-2"
+                >Volver a la automatización</a
+            >
+        </p>
 
         <template v-if="!hasContent">
             <h1 class="text-xl font-semibold">¿Cómo quieres empezar?</h1>
@@ -144,6 +170,17 @@ const start = (data: { template_id?: number; base?: string }) =>
                         />Guardar</Button
                     >
                     <Button
+                        v-if="automationId"
+                        :disabled="saving"
+                        @click="
+                            save(() =>
+                                router.visit(automationEdit.url(automationId!)),
+                            )
+                        "
+                        >Guardar y volver<ArrowRight aria-hidden="true"
+                    /></Button>
+                    <Button
+                        v-else
                         :disabled="saving"
                         @click="
                             save(() => router.visit(review.url(campaign.id)))
@@ -155,6 +192,32 @@ const start = (data: { template_id?: number; base?: string }) =>
             <p v-if="error" class="text-sm text-destructive" role="alert">
                 {{ error }}
             </p>
+            <nav
+                v-if="abContent"
+                class="flex gap-2"
+                aria-label="Versiones de la prueba A/B"
+            >
+                <a
+                    v-for="v in ['A', 'B']"
+                    :key="v"
+                    :href="
+                        contentPage.url(campaign.id, {
+                            query: { variant: v === 'B' ? 'B' : undefined },
+                        })
+                    "
+                    :aria-current="(variant ?? 'A') === v ? 'page' : undefined"
+                    :class="[
+                        'rounded-full border px-3 py-1 text-sm',
+                        (variant ?? 'A') === v
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'hover:bg-muted',
+                    ]"
+                    >Versión {{ v }}</a
+                >
+                <span class="self-center text-xs text-muted-foreground"
+                    >Guarda antes de cambiar de versión.</span
+                >
+            </nav>
             <MergeTagList :tags="mergeTags" />
             <p class="text-sm text-muted-foreground">
                 Si no incluyes {{ '{' + '{ enlace_baja }' + '}' }}, se agregará

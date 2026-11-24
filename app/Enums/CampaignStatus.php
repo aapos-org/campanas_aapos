@@ -7,6 +7,10 @@ enum CampaignStatus: string
     case Draft = 'draft';
     case Scheduled = 'scheduled';
     case Sending = 'sending';
+    /** A/B test sample sent; waiting to pick the winner and send it to the rest. */
+    case Testing = 'testing';
+    /** Backing campaign of an automation email step (sent one by one by the automation). */
+    case Automation = 'automation';
     case Paused = 'paused';
     case Sent = 'sent';
     case Cancelled = 'cancelled';
@@ -18,6 +22,8 @@ enum CampaignStatus: string
             self::Draft => 'Borrador',
             self::Scheduled => 'Programada',
             self::Sending => 'Enviando',
+            self::Testing => 'Prueba A/B en curso',
+            self::Automation => 'Automatización',
             self::Paused => 'En pausa',
             self::Sent => 'Enviada',
             self::Cancelled => 'Cancelada',

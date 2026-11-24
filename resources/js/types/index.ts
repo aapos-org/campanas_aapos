@@ -5,3 +5,4 @@ export * from './pagination';
 export * from './connections';
 export * from './contacts';
 export * from './campaigns';
+export * from './segments';
