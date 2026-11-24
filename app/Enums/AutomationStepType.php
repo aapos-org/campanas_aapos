@@ -28,4 +28,16 @@ enum AutomationStepType: string
     {
         return array_map(fn (self $t) => ['value' => $t->value, 'label' => $t->label()], self::cases());
     }
+
+    /** "1 día", "3 horas"… for wait steps. */
+    public static function duration(int $amount, string $unit): string
+    {
+        [$one, $many] = match ($unit) {
+            'minutes' => ['minuto', 'minutos'],
+            'hours' => ['hora', 'horas'],
+            default => ['día', 'días'],
+        };
+
+        return $amount.' '.($amount === 1 ? $one : $many);
+    }
 }

@@ -32,6 +32,7 @@ use App\Support\Audit;
 use App\Support\Tenancy\CurrentOrganization;
 use Carbon\CarbonImmutable;
 use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -204,7 +205,7 @@ class CampaignController extends Controller
         ]);
     }
 
-    public function updateContent(Request $request, Campaign $campaign): RedirectResponse
+    public function updateContent(Request $request, Campaign $campaign): RedirectResponse|JsonResponse
     {
         $this->ensureEditable($campaign);
 
@@ -224,6 +225,12 @@ class CampaignController extends Controller
         if ($campaign->isAutomation()) {
             // Automation emails are never "started": their links are registered on save.
             $this->links->register($campaign->refresh());
+        }
+
+        // The editor saves with a JSON request: a redirect back to the editor would force a
+        // full page reload (its own CSP) and lose what the page wanted to do next.
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Contenido guardado.']);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Contenido guardado.']);

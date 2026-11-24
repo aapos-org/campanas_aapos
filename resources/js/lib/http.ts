@@ -2,7 +2,15 @@
  * Small JSON POST helper for endpoints that are not Inertia visits (e.g. live previews).
  * Sends Laravel's XSRF token from its cookie.
  */
-export async function postJson<T>(url: string, body: unknown): Promise<T> {
+export function postJson<T>(url: string, body: unknown): Promise<T> {
+    return requestJson<T>('POST', url, body);
+}
+
+export async function requestJson<T>(
+    method: 'POST' | 'PUT',
+    url: string,
+    body: unknown,
+): Promise<T> {
     const token = decodeURIComponent(
         document.cookie
             .split('; ')
@@ -11,7 +19,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
     );
 
     const response = await fetch(url, {
-        method: 'POST',
+        method,
         credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',

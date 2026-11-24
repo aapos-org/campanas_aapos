@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, router } from '@inertiajs/vue3';
+import { toast } from 'vue-sonner';
 import { ArrowRight, Code, LayoutTemplate, Save } from '@lucide/vue';
 import { ref } from 'vue';
 import CampaignSteps from '@/components/CampaignSteps.vue';
@@ -9,6 +10,7 @@ import HtmlEditor from '@/components/email/HtmlEditor.vue';
 import MergeTagList from '@/components/email/MergeTagList.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { requestJson } from '@/lib/http';
 import { index, review, template as applyTemplate } from '@/routes/campaigns';
 import { content as contentPage } from '@/routes/campaigns';
 import { update as updateContent } from '@/routes/campaigns/content';
@@ -60,15 +62,20 @@ const save = (then?: () => void) => {
         variant: props.variant,
     };
 
-    router.put(updateContent.url(props.campaign.id), payload, {
-        preserveScroll: true,
-        preserveState: true,
-        onStart: () => (saving.value = true),
-        onFinish: () => (saving.value = false),
-        onError: (e) =>
-            (error.value = Object.values(e)[0] ?? 'No se pudo guardar.'),
-        onSuccess: () => then?.(),
-    });
+    saving.value = true;
+    error.value = null;
+
+    requestJson<{ message: string }>(
+        'PUT',
+        updateContent.url(props.campaign.id),
+        payload,
+    )
+        .then((response) => {
+            toast.success(response.message);
+            then?.();
+        })
+        .catch((e: Error) => (error.value = e.message))
+        .finally(() => (saving.value = false));
 };
 
 const start = (data: { template_id?: number; base?: string }) =>

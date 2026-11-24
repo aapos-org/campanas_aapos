@@ -262,7 +262,7 @@ class AutomationController extends Controller
 
         return $step->position.'. '.match ($step->type) {
             AutomationStepType::SendEmail => 'Enviar «'.($config['subject'] ?? '').'»',
-            AutomationStepType::Wait => sprintf('Esperar %d %s', (int) ($config['amount'] ?? 0), ['minutes' => 'minutos', 'hours' => 'horas', 'days' => 'días'][$config['unit'] ?? 'days'] ?? ''),
+            AutomationStepType::Wait => 'Esperar '.AutomationStepType::duration((int) ($config['amount'] ?? 0), (string) ($config['unit'] ?? 'days')),
             AutomationStepType::AddTag => 'Agregar etiqueta «'.(Tag::query()->whereKey((int) ($config['tag_id'] ?? 0))->value('name') ?? '¿?').'»',
             AutomationStepType::RemoveTag => 'Quitar etiqueta «'.(Tag::query()->whereKey((int) ($config['tag_id'] ?? 0))->value('name') ?? '¿?').'»',
             AutomationStepType::Condition => 'Condición: '.app(SegmentRules::class)->describe((string) ($config['match'] ?? 'all'), $step->conditionList()),

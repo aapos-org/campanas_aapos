@@ -64,7 +64,7 @@ class PreSendChecklist
                 default => [filled(strip_tags((string) $b?->html)), 'el contenido'],
             };
             $add('ab', $ok,
-                sprintf('Prueba A/B de %s: muestra del %d %%, gana la versión con más %s tras %d h.', $what, (int) $campaign->ab_sample_percent, $campaign->ab_metric === 'opens' ? 'aperturas' : 'clics', (int) $campaign->ab_wait_hours),
+                sprintf('Prueba A/B %s: muestra del %d %%, gana la versión con más %s tras %d h.', str_replace('de el ', 'del ', 'de '.$what), (int) $campaign->ab_sample_percent, $campaign->ab_metric === 'opens' ? 'aperturas' : 'clics', (int) $campaign->ab_wait_hours),
                 "Prueba A/B: falta {$what} de la versión B.");
         }
 

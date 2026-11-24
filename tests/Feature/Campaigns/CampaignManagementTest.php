@@ -109,3 +109,14 @@ it('creates templates from the library and duplicates historic campaigns as HTML
     $copy = Campaign::query()->latest('id')->first();
     expect($copy->status)->toBe(CampaignStatus::Draft)->and($copy->is_historic)->toBeFalse()->and($copy->editor)->toBe('html');
 });
+
+it('saves editor content with a JSON request so the page can continue to the next step', function () {
+    $user = userWithRole(Role::Editor);
+    actAsOrganization($user->organization);
+    $campaign = Campaign::factory()->create(['editor' => 'html']);
+
+    $this->actingAs($user)->putJson(route('campaigns.content.update', $campaign), ['html' => '<p>Hola</p>'])
+        ->assertOk()->assertJson(['message' => 'Contenido guardado.']);
+
+    expect($campaign->refresh()->html)->toContain('Hola');
+});

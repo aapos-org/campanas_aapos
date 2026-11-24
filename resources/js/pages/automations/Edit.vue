@@ -12,7 +12,7 @@ import {
     Tag,
     Trash2,
 } from '@lucide/vue';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -167,21 +167,23 @@ const save = (then?: () => void) =>
         },
     );
 
-const editContent = (step: Step) => {
-    if (!step.id) {
-        save();
+// After each save the server returns the stored steps (with ids and email
+// campaigns): mirror them so later saves update instead of recreating steps.
+watch(
+    () => props.automation.steps,
+    (steps) => {
+        form.steps = steps.map((st) => ({ ...st, config: { ...st.config } }));
+    },
+);
 
-        return;
-    }
-
+const editContent = (index: number) =>
     save(() => {
-        const saved = props.automation.steps.find((s) => s.id === step.id);
+        const saved = props.automation.steps[index];
 
         if (saved?.campaign_id) {
             window.location.href = content.url(saved.campaign_id);
         }
     });
-};
 
 const statusLabel = { draft: 'Borrador', active: 'Activa', paused: 'En pausa' };
 </script>
@@ -467,7 +469,7 @@ const statusLabel = { draft: 'Borrador', active: 'Activa', paused: 'En pausa' };
                                 type="button"
                                 variant="secondary"
                                 size="sm"
-                                @click="editContent(s)"
+                                @click="editContent(i)"
                                 ><Pencil aria-hidden="true" />{{
                                     s.id
                                         ? 'Diseñar el correo'

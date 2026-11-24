@@ -148,7 +148,7 @@ class AutomationRunner
                 $amount = max(1, (int) ($config['amount'] ?? 1));
                 $unit = in_array($config['unit'] ?? null, ['minutes', 'hours', 'days'], true) ? $config['unit'] : 'days';
                 $run->next_run_at = now()->add($unit, $amount);
-                $run->log(sprintf('Esperando %d %s.', $amount, ['minutes' => 'minutos', 'hours' => 'horas', 'days' => 'días'][$unit]), $step->id);
+                $run->log('Esperando '.AutomationStepType::duration($amount, $unit).'.', $step->id);
 
                 return 'wait';
 
