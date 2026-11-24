@@ -16,7 +16,7 @@ La plataforma sirve hoy a **una sola organización** (AAPOS), pero el diseño de
 | `monthly_sends`              | Contador atómico mensual (`organization_monthly_usage`); al agotarse, las campañas se pausan y las automatizaciones esperan. |
 | `daily_sends_per_connection` | Tope que se aplica al límite diario de cada conexión de envío al guardarla.                                                  |
 
-- **Panel de uso** (_la página Uso del menú_) y alertas en el inicio al 80 % y al 100 %.
+- **Panel de uso** (página _Uso_ del menú) y alertas en el inicio al 80 % y al 100 %.
 - Pruebas de aislamiento entre organizaciones (`tests/Feature/Tenancy`, `tests/Feature/Api`).
 
 ## Lo que faltaría para vender a varias organizaciones

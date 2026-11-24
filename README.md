@@ -107,7 +107,7 @@ Ambos comandos los corre el _scheduler_ (`php artisan schedule:run` cada minuto 
 
 - **API REST** `/api/v1` con tokens por permisos (_Administración → API_) y documentación OpenAPI en `/docs/api`. Detalles en `docs/API.md`.
 - **Webhooks salientes** firmados (_Administración → Webhooks salientes_).
-- **Límites de uso** (contactos, envíos por mes, tope diario por conexión) en _Administración → Organización_; consumo en _Reportes → Uso_. Estructura multi-tenant en `docs/MULTITENANT.md`.
+- **Límites de uso** (contactos, envíos por mes, tope diario por conexión) en _Administración → Organización_; consumo en la página _Uso_ del menú. Estructura multi-tenant en `docs/MULTITENANT.md`.
 
 ## Primer administrador en un servidor nuevo
 
