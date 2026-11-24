@@ -53,7 +53,7 @@ const statusVariant = (s: CallRow['status']) =>
             description="Notificaciones de entregas, rebotes, quejas y bajas enviadas por el proveedor. Los rebotes duros y las quejas suprimen el correo en todas las audiencias."
         />
 
-        <section class="rounded-xl border p-4 text-sm" aria-labelledby="cfg">
+        <section class="glass-card p-4 text-sm" aria-labelledby="cfg">
             <h2 id="cfg" class="mb-2 font-medium">Configuración</h2>
             <template v-if="webhookUrl">
                 <p class="mb-2 text-muted-foreground">
@@ -87,7 +87,7 @@ const statusVariant = (s: CallRow['status']) =>
             <li
                 v-for="call in calls.data"
                 :key="call.id"
-                class="rounded-xl border p-4"
+                class="glass-card p-4"
             >
                 <div
                     class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"

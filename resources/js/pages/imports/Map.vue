@@ -94,7 +94,7 @@ const submit = () => {
                 <div
                     v-for="(header, i) in headers"
                     :key="i"
-                    class="space-y-2 rounded-xl border p-3"
+                    class="space-y-2 glass-card p-3"
                 >
                     <Label :for="`col-${i}`" class="font-medium">{{
                         header || `Columna ${i + 1}`

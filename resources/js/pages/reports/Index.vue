@@ -96,7 +96,7 @@ const selectClass =
             <div
                 v-for="(label, key) in statusLabels"
                 :key="key"
-                class="rounded-xl border p-3"
+                class="glass-card p-3"
             >
                 <dt class="text-xs text-muted-foreground">{{ label }}</dt>
                 <dd class="text-xl font-semibold tabular-nums">
@@ -106,7 +106,7 @@ const selectClass =
         </dl>
 
         <section
-            class="grid gap-6 rounded-xl border p-4 md:grid-cols-2"
+            class="grid gap-6 glass-card p-4 md:grid-cols-2"
             aria-label="Crecimiento por mes"
         >
             <BarChart
@@ -125,7 +125,7 @@ const selectClass =
             <h2 id="s-campaigns" class="font-medium">
                 Comparación de campañas enviadas
             </h2>
-            <div class="overflow-x-auto rounded-xl border">
+            <div class="overflow-x-auto glass-card">
                 <table class="w-full text-sm">
                     <thead class="bg-muted/50 text-left text-muted-foreground">
                         <tr>

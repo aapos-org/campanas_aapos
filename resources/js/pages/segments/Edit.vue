@@ -137,7 +137,7 @@ const cancel = () => router.visit(index.url());
             </div>
         </div>
 
-        <fieldset class="space-y-3 rounded-xl border p-4">
+        <fieldset class="space-y-3 glass-card p-4">
             <legend class="px-1 text-sm font-medium">Condiciones</legend>
             <div class="flex flex-wrap items-center gap-2 text-sm">
                 <span>Incluir contactos que cumplan</span>
@@ -163,7 +163,7 @@ const cancel = () => router.visit(index.url());
         </fieldset>
 
         <section
-            class="rounded-xl border p-4"
+            class="glass-card p-4"
             aria-live="polite"
             aria-labelledby="s-preview"
         >

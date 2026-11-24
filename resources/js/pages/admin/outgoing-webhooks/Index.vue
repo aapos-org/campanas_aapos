@@ -131,7 +131,7 @@ const eventLabel = (v: string) =>
             description="Avisa a otros sistemas cuando alguien se suscribe o se da de baja, rebota un correo, hace clic o termina una campaña."
         />
 
-        <details class="rounded-xl border p-4 text-sm">
+        <details class="glass-card p-4 text-sm">
             <summary class="cursor-pointer font-medium">
                 Cómo verificar la firma
             </summary>
@@ -154,7 +154,7 @@ const eventLabel = (v: string) =>
         </details>
 
         <form
-            class="grid gap-4 rounded-xl border p-4"
+            class="grid gap-4 glass-card p-4"
             aria-labelledby="s-form"
             @submit.prevent="submit"
         >
@@ -233,7 +233,7 @@ const eventLabel = (v: string) =>
                 <li
                     v-for="e in endpoints"
                     :key="e.id"
-                    class="space-y-2 rounded-xl border p-4"
+                    class="space-y-2 glass-card p-4"
                 >
                     <div
                         class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
@@ -320,7 +320,7 @@ const eventLabel = (v: string) =>
                 <li
                     v-for="d in deliveries.data"
                     :key="d.id"
-                    class="rounded-xl border p-3 text-sm"
+                    class="glass-card p-3 text-sm"
                 >
                     <div
                         class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"

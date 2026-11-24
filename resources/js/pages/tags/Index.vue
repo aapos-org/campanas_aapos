@@ -89,7 +89,7 @@ const confirmDelete = () => {
             <li
                 v-for="tag in tags"
                 :key="tag.id"
-                class="flex items-center gap-2 rounded-xl border p-3"
+                class="flex items-center gap-2 glass-card p-3"
             >
                 <template v-if="editing === tag.id">
                     <div class="flex-1">

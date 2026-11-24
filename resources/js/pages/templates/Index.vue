@@ -72,7 +72,7 @@ const base = ref('boletin');
             <li v-for="t in templates" :key="t.id">
                 <Link
                     :href="edit(t.id)"
-                    class="block h-full rounded-xl border p-4 hover:bg-muted/40"
+                    class="block h-full glass-card p-4 hover:bg-muted/40"
                 >
                     <p class="font-medium">{{ t.name }}</p>
                     <p

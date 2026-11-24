@@ -33,9 +33,7 @@ defineOptions({
             class="max-w-xl space-y-6"
             v-slot="{ errors, processing, progress }"
         >
-            <div
-                class="grid gap-3 rounded-xl border border-dashed p-6 text-center"
-            >
+            <div class="grid gap-3 glass-card border-dashed p-6 text-center">
                 <FileSpreadsheet
                     class="mx-auto size-10 text-muted-foreground"
                     aria-hidden="true"

@@ -171,7 +171,7 @@ const resendInvitation = () => {
 
         <section
             v-if="isEdit && user?.is_active"
-            class="max-w-xl space-y-3 rounded-xl border p-4"
+            class="max-w-xl space-y-3 glass-card p-4"
             aria-labelledby="invite-title"
         >
             <h2 id="invite-title" class="font-medium">Invitación</h2>

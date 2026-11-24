@@ -191,7 +191,7 @@ const checkLinks = () =>
 
                 <section
                     v-if="canSend"
-                    class="space-y-3 rounded-xl border p-4"
+                    class="space-y-3 glass-card p-4"
                     aria-labelledby="s-send"
                 >
                     <h2 id="s-send" class="font-medium">Enviar</h2>

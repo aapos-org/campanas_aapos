@@ -339,7 +339,7 @@ const records = [
         </div>
 
         <section
-            class="space-y-2 rounded-xl border p-4 text-sm"
+            class="space-y-2 glass-card p-4 text-sm"
             aria-labelledby="dns-guide"
         >
             <h2 id="dns-guide" class="font-medium">

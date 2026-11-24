@@ -57,7 +57,7 @@ const { number } = useFormat();
             <li
                 v-for="form in forms"
                 :key="form.id"
-                class="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center"
+                class="flex flex-col gap-3 glass-card p-4 sm:flex-row sm:items-center"
             >
                 <div class="min-w-0 flex-1">
                     <Link

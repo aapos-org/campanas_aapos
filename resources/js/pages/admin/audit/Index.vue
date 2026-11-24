@@ -125,11 +125,7 @@ const details = (log: LogRow): string | null => {
         />
 
         <ol v-else class="grid gap-3">
-            <li
-                v-for="log in logs.data"
-                :key="log.id"
-                class="rounded-xl border p-4"
-            >
+            <li v-for="log in logs.data" :key="log.id" class="glass-card p-4">
                 <div
                     class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
                 >

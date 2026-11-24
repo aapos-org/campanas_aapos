@@ -10,7 +10,7 @@ defineProps<{
 
 <template>
     <div
-        class="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-10 text-center"
+        class="flex flex-col items-center justify-center gap-2 glass-card border-dashed p-10 text-center"
     >
         <component
             :is="icon"

@@ -88,7 +88,7 @@ const deleting = ref<Row | null>(null);
             <li
                 v-for="s in segments.data"
                 :key="s.id"
-                class="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+                class="flex flex-col gap-3 glass-card p-4 sm:flex-row sm:items-center sm:justify-between"
             >
                 <div class="min-w-0 space-y-1">
                     <p class="font-medium">

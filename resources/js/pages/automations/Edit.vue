@@ -401,7 +401,7 @@ const statusLabel = { draft: 'Borrador', active: 'Activa', paused: 'En pausa' };
                 <li
                     v-for="(s, i) in form.steps"
                     :key="s.id ?? `new-${i}`"
-                    class="space-y-3 rounded-xl border p-4"
+                    class="space-y-3 glass-card p-4"
                 >
                     <div class="flex items-center justify-between gap-2">
                         <p class="flex items-center gap-2 font-medium">
