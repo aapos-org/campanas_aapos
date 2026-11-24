@@ -95,6 +95,14 @@ Guía paso a paso en [`docs/MIGRACION.md`](docs/MIGRACION.md): `mailchimp:extrac
 
 Cada formulario tiene una página alojada (`/f/{código}`) y códigos para insertar (JavaScript, iframe o HTML). Para el captcha opcional configura `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` (Cloudflare Turnstile). Los correos de confirmación salen por la conexión de envío predeterminada.
 
+## Segmentos, pruebas A/B y automatizaciones
+
+- **Segmentos** (_Contactos → Segmentos_): grupos dinámicos por etiquetas, campos, estado, fecha de alta y actividad en campañas, con conteo en vivo. Una campaña puede dirigirse a un segmento de su audiencia.
+- **Pruebas A/B** (paso _Configuración_ de la campaña): asunto, remitente o contenido; se envía una muestra, y tras la espera la versión ganadora va al resto (`campaigns:decide-ab`).
+- **Automatizaciones** (_Campañas → Automatizaciones_): disparadores «se suscribe», «se agrega una etiqueta» y «fecha de un campo», con pasos de correo, espera, etiquetas y condiciones. Las ejecuta `automations:run` cada minuto.
+
+Ambos comandos los corre el _scheduler_ (`php artisan schedule:run` cada minuto en cron) y requieren Horizon activo.
+
 ## Primer administrador en un servidor nuevo
 
 No existe registro público: los usuarios los invita un administrador. En una instalación nueva:

@@ -5,6 +5,7 @@ import {
     BarChart3,
     BookUser,
     FileText,
+    Filter,
     LayoutTemplate,
     Megaphone,
     LayoutGrid,
@@ -16,6 +17,7 @@ import {
     Upload,
     Users,
     Webhook,
+    Workflow,
 } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -31,6 +33,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as auditIndex } from '@/routes/admin/audit';
+import { index as automationsIndex } from '@/routes/automations';
 import { index as campaignsIndex } from '@/routes/campaigns';
 import { index as templatesIndex } from '@/routes/templates';
 import { index as audiencesIndex } from '@/routes/audiences';
@@ -38,6 +41,7 @@ import { index as fieldsIndex } from '@/routes/fields';
 import { index as formsIndex } from '@/routes/forms';
 import { index as importsIndex } from '@/routes/imports';
 import { index as suppressionsIndex } from '@/routes/suppressions';
+import { index as segmentsIndex } from '@/routes/segments';
 import { index as tagsIndex } from '@/routes/tags';
 import { index as connectionsIndex } from '@/routes/connections';
 import { index as usersIndex } from '@/routes/admin/users';
@@ -74,6 +78,12 @@ const navGroups: NavGroup[] = [
                 permission: 'campaigns.manage',
             },
             {
+                title: 'Automatizaciones',
+                href: automationsIndex(),
+                icon: Workflow,
+                permission: 'campaigns.view',
+            },
+            {
                 title: 'Reportes',
                 href: reportsIndex(),
                 icon: BarChart3,
@@ -95,6 +105,12 @@ const navGroups: NavGroup[] = [
                 href: formsIndex(),
                 icon: FileText,
                 permission: 'contacts.manage',
+            },
+            {
+                title: 'Segmentos',
+                href: segmentsIndex(),
+                icon: Filter,
+                permission: 'contacts.view',
             },
             {
                 title: 'Etiquetas',

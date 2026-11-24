@@ -3,39 +3,32 @@
 namespace App\Services\Campaigns;
 
 use App\Models\Campaign;
+use App\Models\Segment;
+use App\Services\Segments\SegmentQuery;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Freezes the recipient list when sending starts: subscribed contacts of the audience
- * (optionally with any of the selected tags), minus every global or audience suppression.
- * One INSERT … SELECT; re-running adds nobody twice (unique campaign_id + contact_id).
+ * (optionally with any of the selected tags and matching the segment), minus every global
+ * or audience suppression. One INSERT … SELECT; re-running adds nobody twice.
  */
 class RecipientFreezer
 {
+    public function __construct(private readonly SegmentQuery $segments) {}
+
     public function freeze(Campaign $campaign): int
     {
-        $tagIds = array_map('intval', $campaign->tag_ids);
-        $tagFilter = $tagIds === []
-            ? ''
-            : 'AND EXISTS (SELECT 1 FROM contact_tag ct WHERE ct.contact_id = c.id AND ct.tag_id IN ('.implode(',', array_fill(0, count($tagIds), '?')).'))';
+        $select = $this->eligible($campaign)->selectRaw(
+            "c.organization_id, ?, c.id, ac.id, c.email, 'pending', 0, md5(random()::text || clock_timestamp()::text || c.id::text), now(), now()",
+            [$campaign->id],
+        );
 
-        DB::insert(<<<SQL
-            INSERT INTO campaign_recipients (organization_id, campaign_id, contact_id, subscription_id, email, status, attempts, token, created_at, updated_at)
-            SELECT c.organization_id, ?, c.id, ac.id, c.email, 'pending', 0, md5(random()::text || clock_timestamp()::text || c.id::text), now(), now()
-            FROM audience_contact ac
-            JOIN contacts c ON c.id = ac.contact_id AND c.deleted_at IS NULL
-            WHERE ac.audience_id = ?
-              AND ac.status = 'subscribed'
-              AND c.organization_id = ?
-              AND NOT EXISTS (
-                  SELECT 1 FROM suppressions s
-                  WHERE s.organization_id = c.organization_id
-                    AND s.email = c.email
-                    AND (s.audience_id IS NULL OR s.audience_id = ac.audience_id)
-              )
-              {$tagFilter}
-            ON CONFLICT (campaign_id, contact_id) DO NOTHING
-            SQL, [$campaign->id, $campaign->audience_id, $campaign->organization_id, ...$tagIds]);
+        // ON CONFLICT DO NOTHING: the partial unique index (campaign_id, contact_id) protects re-runs.
+        DB::table('campaign_recipients')->insertOrIgnoreUsing(
+            ['organization_id', 'campaign_id', 'contact_id', 'subscription_id', 'email', 'status', 'attempts', 'token', 'created_at', 'updated_at'],
+            $select,
+        );
 
         $count = DB::table('campaign_recipients')->where('campaign_id', $campaign->id)->count();
         $campaign->forceFill(['recipients_count' => $count])->save();
@@ -48,23 +41,29 @@ class RecipientFreezer
      */
     public function estimate(Campaign $campaign): int
     {
-        if ($campaign->audience_id === null) {
-            return 0;
-        }
+        return $campaign->audience_id === null ? 0 : $this->eligible($campaign)->count();
+    }
 
+    private function eligible(Campaign $campaign): Builder
+    {
         $tagIds = array_map('intval', $campaign->tag_ids);
-
-        return (int) DB::table('audience_contact as ac')
-            ->join('contacts as c', fn ($j) => $j->on('c.id', '=', 'ac.contact_id')->whereNull('c.deleted_at'))
-            ->where('ac.audience_id', $campaign->audience_id)
+        $query = $this->segments->base((int) $campaign->audience_id)
             ->where('ac.status', 'subscribed')
+            ->where('c.organization_id', $campaign->organization_id)
             ->whereNotExists(fn ($q) => $q->from('suppressions as s')
                 ->whereColumn('s.organization_id', 'c.organization_id')
                 ->whereColumn('s.email', 'c.email')
                 ->where(fn ($w) => $w->whereNull('s.audience_id')->orWhereColumn('s.audience_id', 'ac.audience_id')))
             ->when($tagIds !== [], fn ($q) => $q->whereExists(fn ($e) => $e->from('contact_tag as ct')
                 ->whereColumn('ct.contact_id', 'c.id')
-                ->whereIn('ct.tag_id', $tagIds)))
-            ->count();
+                ->whereIn('ct.tag_id', $tagIds)));
+
+        $segment = $campaign->segment_id !== null ? Segment::query()->find($campaign->segment_id) : null;
+
+        if ($segment !== null && $segment->audience_id === $campaign->audience_id) {
+            $this->segments->apply($query, $segment->match, $segment->conditions);
+        }
+
+        return $query;
     }
 }

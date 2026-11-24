@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useFormat } from '@/composables/useFormat';
 import {
     cancel,
+    abWinner,
     duplicate,
     exportMethod as exportReport,
     index,
@@ -67,6 +68,17 @@ const props = defineProps<{
     recipients: Paginated<RecipientRow> | null;
     filters: { activity: string; q: string };
     activityOptions: Record<string, string>;
+    abResults:
+        | {
+              id: number;
+              label: string;
+              sent: number;
+              opens: number;
+              clicks: number;
+              open_rate: number | null;
+              click_rate: number | null;
+          }[]
+        | null;
     canSend: boolean;
     canManage: boolean;
     canReport: boolean;
@@ -78,11 +90,13 @@ defineOptions({
 
 const { dateTime, number } = useFormat();
 const active = computed(() =>
-    ['sending', 'paused', 'scheduled'].includes(props.campaign.status),
+    ['sending', 'paused', 'scheduled', 'testing'].includes(
+        props.campaign.status,
+    ),
 );
 const { stop } = usePoll(
     3000,
-    { only: ['campaign', 'stats', 'timeline'] },
+    { only: ['campaign', 'stats', 'timeline', 'abResults'] },
     { autoStart: props.campaign.status === 'sending' },
 );
 watch(
@@ -206,6 +220,113 @@ const historic = computed(
                     class="h-full rounded-full bg-primary transition-all"
                     :style="{ width: `${progress}%` }"
                 />
+            </div>
+        </section>
+
+        <section
+            v-if="abResults && abResults.length"
+            class="space-y-3 rounded-xl border p-4"
+            aria-labelledby="s-ab"
+        >
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+                <h2 id="s-ab" class="font-medium">
+                    Prueba A/B ·
+                    {{
+                        campaign.ab_type === 'subject'
+                            ? 'asunto'
+                            : campaign.ab_type === 'from_name'
+                              ? 'remitente'
+                              : 'contenido'
+                    }}
+                </h2>
+                <Button
+                    v-if="canSend && campaign.status === 'testing'"
+                    size="sm"
+                    @click="router.post(abWinner.url(campaign.id))"
+                    >Elegir ganador ahora</Button
+                >
+            </div>
+            <p class="text-sm text-muted-foreground">
+                <template v-if="campaign.status === 'testing'"
+                    >Muestra enviada. El ganador (más
+                    {{
+                        campaign.ab_metric === 'opens' ? 'aperturas' : 'clics'
+                    }}) se elegirá automáticamente
+                    {{ campaign.ab_wait_hours }} horas después de terminar la
+                    muestra.</template
+                >
+                <template v-else-if="campaign.ab_decided_at"
+                    >Ganador elegido el
+                    {{ dateTime(campaign.ab_decided_at) }} por
+                    {{
+                        campaign.ab_metric === 'opens' ? 'aperturas' : 'clics'
+                    }}.</template
+                >
+                <template v-else
+                    >Se envía primero al {{ campaign.ab_sample_percent }} % de
+                    los destinatarios.</template
+                >
+            </p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-muted-foreground">
+                        <tr>
+                            <th class="py-1 font-medium">Versión</th>
+                            <th class="py-1 font-medium">Detalle</th>
+                            <th class="py-1 text-right font-medium">
+                                Enviados
+                            </th>
+                            <th class="py-1 text-right font-medium">
+                                Aperturas
+                            </th>
+                            <th class="py-1 text-right font-medium">Clics</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="r in abResults" :key="r.id" class="border-t">
+                            <td class="py-2">
+                                {{ r.label }}
+                                <Badge
+                                    v-if="
+                                        campaign.ab_winner_variant_id === r.id
+                                    "
+                                    class="ml-1"
+                                    >Ganadora</Badge
+                                >
+                            </td>
+                            <td class="max-w-[16rem] truncate py-2">
+                                {{
+                                    campaign.ab_type === 'subject'
+                                        ? (campaign.variants.find(
+                                              (v) => v.id === r.id,
+                                          )?.subject ?? campaign.subject)
+                                        : campaign.ab_type === 'from_name'
+                                          ? (campaign.variants.find(
+                                                (v) => v.id === r.id,
+                                            )?.from_name ?? campaign.from_name)
+                                          : `Contenido ${r.label}`
+                                }}
+                            </td>
+                            <td class="py-2 text-right tabular-nums">
+                                {{ number(r.sent) }}
+                            </td>
+                            <td class="py-2 text-right tabular-nums">
+                                {{ number(r.opens) }}
+                                <span class="text-muted-foreground"
+                                    >({{ r.open_rate ?? '—' }} %)</span
+                                >
+                            </td>
+                            <td class="py-2 text-right tabular-nums">
+                                {{ number(r.clicks) }}
+                                <span class="text-muted-foreground"
+                                    >({{ r.click_rate ?? '—' }} %)</span
+                                >
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 

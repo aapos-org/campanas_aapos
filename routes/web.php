@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WebhookCallController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
+use App\Http\Controllers\Automations\AutomationController;
 use App\Http\Controllers\Campaigns\CampaignController;
 use App\Http\Controllers\Campaigns\TemplateController;
 use App\Http\Controllers\Connections\GoogleOAuthController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\PublicSite\PublicFormController;
 use App\Http\Controllers\PublicSite\TrackingController;
 use App\Http\Controllers\PublicSite\WebhookController;
 use App\Http\Controllers\Reports\ReportController;
+use App\Http\Controllers\Segments\SegmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard')->name('home');
@@ -147,6 +149,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('campaigns/{campaign}/pause', [CampaignController::class, 'pause'])->name('campaigns.pause');
         Route::post('campaigns/{campaign}/resume', [CampaignController::class, 'resume'])->name('campaigns.resume');
         Route::post('campaigns/{campaign}/cancel', [CampaignController::class, 'cancel'])->name('campaigns.cancel');
+        Route::post('campaigns/{campaign}/ab-winner', [CampaignController::class, 'decideAb'])->name('campaigns.ab-winner');
     });
 
     Route::middleware('permission:'.Permission::CampaignsView->value)->group(function () {
@@ -154,6 +157,34 @@ Route::middleware(['auth'])->group(function () {
         Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->name('campaigns.show');
         Route::get('campaigns/{campaign}/preview', [CampaignController::class, 'preview'])->name('campaigns.preview');
     });
+
+    // Module 5: segments.
+    Route::middleware('permission:'.Permission::ContactsView->value)->group(function () {
+        Route::get('segments', [SegmentController::class, 'index'])->name('segments.index');
+    });
+    Route::middleware('permission:'.Permission::ContactsManage->value)->group(function () {
+        Route::get('segments/create', [SegmentController::class, 'create'])->name('segments.create');
+        Route::post('segments/preview', [SegmentController::class, 'preview'])->middleware('throttle:60,1')->name('segments.preview');
+        Route::post('segments', [SegmentController::class, 'store'])->name('segments.store');
+        Route::get('segments/{segment}/edit', [SegmentController::class, 'edit'])->name('segments.edit');
+        Route::put('segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
+        Route::delete('segments/{segment}', [SegmentController::class, 'destroy'])->name('segments.destroy');
+    });
+
+    // Module 6: automations.
+    Route::middleware('permission:'.Permission::CampaignsView->value)->group(function () {
+        Route::get('automations', [AutomationController::class, 'index'])->name('automations.index');
+        Route::get('automations/{automation}', [AutomationController::class, 'show'])->name('automations.show');
+    });
+    Route::middleware('permission:'.Permission::CampaignsManage->value)->group(function () {
+        Route::post('automations', [AutomationController::class, 'store'])->name('automations.store');
+        Route::get('automations/{automation}/edit', [AutomationController::class, 'edit'])->name('automations.edit');
+        Route::put('automations/{automation}', [AutomationController::class, 'update'])->name('automations.update');
+        Route::post('automations/{automation}/pause', [AutomationController::class, 'pause'])->name('automations.pause');
+        Route::delete('automations/{automation}', [AutomationController::class, 'destroy'])->name('automations.destroy');
+    });
+    Route::post('automations/{automation}/activate', [AutomationController::class, 'activate'])
+        ->middleware('permission:'.Permission::CampaignsSend->value)->name('automations.activate');
 
     // Module 4: reports.
     Route::middleware('permission:'.Permission::ReportsView->value)->group(function () {
