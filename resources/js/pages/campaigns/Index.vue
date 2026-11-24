@@ -95,7 +95,7 @@ const link = (c: CampaignSummary) =>
             <li v-for="c in campaigns.data" :key="c.id">
                 <Link
                     :href="link(c)"
-                    class="flex flex-col gap-2 rounded-xl border p-4 hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4"
+                    class="flex flex-col gap-2 glass-card p-4 hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4"
                 >
                     <div class="min-w-0 flex-1">
                         <p class="truncate font-medium">{{ c.name }}</p>

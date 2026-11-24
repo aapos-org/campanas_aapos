@@ -90,7 +90,7 @@ watch(status, (value) =>
             <div
                 v-for="(label, key) in statusLabels"
                 :key="key"
-                class="rounded-xl border p-3"
+                class="glass-card p-3"
             >
                 <dt class="text-xs text-muted-foreground">{{ label }}</dt>
                 <dd class="text-xl font-semibold tabular-nums">
@@ -101,7 +101,7 @@ watch(status, (value) =>
 
         <section class="space-y-2" aria-labelledby="s-steps">
             <h2 id="s-steps" class="font-medium">Pasos</h2>
-            <ol class="divide-y rounded-xl border">
+            <ol class="divide-y glass-card">
                 <li
                     v-for="s in steps"
                     :key="s.id"
@@ -167,7 +167,7 @@ watch(status, (value) =>
                 <li
                     v-for="r in runs.data"
                     :key="r.id"
-                    class="space-y-2 rounded-xl border p-4"
+                    class="space-y-2 glass-card p-4"
                 >
                     <div
                         class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"

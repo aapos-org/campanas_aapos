@@ -113,7 +113,7 @@ const start = (data: { template_id?: number; base?: string }) =>
                         v-for="t in templates"
                         :key="t.id"
                         type="button"
-                        class="rounded-xl border p-4 text-left hover:bg-muted/40"
+                        class="glass-card p-4 text-left hover:bg-muted/40"
                         @click="start({ template_id: t.id })"
                     >
                         <LayoutTemplate
@@ -131,7 +131,7 @@ const start = (data: { template_id?: number; base?: string }) =>
                         v-for="t in library ?? []"
                         :key="t.key"
                         type="button"
-                        class="rounded-xl border p-4 text-left hover:bg-muted/40"
+                        class="glass-card p-4 text-left hover:bg-muted/40"
                         @click="start({ base: t.key })"
                     >
                         <span class="block font-medium">{{ t.name }}</span>
@@ -141,7 +141,7 @@ const start = (data: { template_id?: number; base?: string }) =>
                     </button>
                     <button
                         type="button"
-                        class="rounded-xl border p-4 text-left hover:bg-muted/40"
+                        class="glass-card p-4 text-left hover:bg-muted/40"
                         @click="start({ base: 'html' })"
                     >
                         <span class="flex items-center gap-1.5 font-medium"

@@ -80,7 +80,7 @@ const confirmRemove = () => {
             description="Direcciones que nunca reciben campañas. Las bajas, rebotes duros y quejas se agregan solas y no se reactivan por importación."
         />
 
-        <details class="rounded-xl border p-4">
+        <details class="glass-card p-4">
             <summary class="cursor-pointer font-medium">
                 Agregar direcciones manualmente
             </summary>
@@ -173,7 +173,7 @@ const confirmRemove = () => {
             <li
                 v-for="row in suppressions.data"
                 :key="row.id"
-                class="flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center"
+                class="flex flex-col gap-2 glass-card p-3 sm:flex-row sm:items-center"
             >
                 <div class="min-w-0 flex-1">
                     <p class="truncate font-medium">{{ row.email }}</p>

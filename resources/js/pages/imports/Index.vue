@@ -37,7 +37,7 @@ const { dateTime, number } = useFormat();
             <li v-for="item in imports.data" :key="item.id">
                 <Link
                     :href="show(item.id)"
-                    class="flex flex-col gap-1 rounded-xl border p-3 hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4"
+                    class="flex flex-col gap-1 glass-card p-3 hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4"
                 >
                     <div class="min-w-0 flex-1">
                         <p class="truncate font-medium">{{ item.file }}</p>

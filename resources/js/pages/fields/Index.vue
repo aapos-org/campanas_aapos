@@ -75,7 +75,7 @@ const confirmDelete = () => {
             "
             :options="{ preserveScroll: true }"
             reset-on-success
-            class="grid gap-4 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+            class="grid gap-4 glass-card p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
             @success="
                 () => {
                     optionsText = '';
@@ -143,7 +143,7 @@ const confirmDelete = () => {
             <li
                 v-for="field in fields"
                 :key="field.id"
-                class="flex flex-col gap-2 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+                class="flex flex-col gap-2 glass-card p-4 sm:flex-row sm:items-center sm:justify-between"
             >
                 <div class="min-w-0 space-y-1">
                     <p class="font-medium">

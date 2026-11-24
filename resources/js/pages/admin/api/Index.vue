@@ -117,7 +117,7 @@ const copy = async (text: string) => {
         </Alert>
 
         <form
-            class="grid gap-4 rounded-xl border p-4"
+            class="grid gap-4 glass-card p-4"
             aria-labelledby="s-new"
             @submit.prevent="submit"
         >
@@ -180,7 +180,7 @@ const copy = async (text: string) => {
                 <li
                     v-for="t in tokens"
                     :key="t.id"
-                    class="flex flex-col gap-2 rounded-xl border p-4 sm:flex-row sm:items-start sm:justify-between"
+                    class="flex flex-col gap-2 glass-card p-4 sm:flex-row sm:items-start sm:justify-between"
                 >
                     <div class="min-w-0 space-y-1">
                         <p class="font-medium">{{ t.name }}</p>

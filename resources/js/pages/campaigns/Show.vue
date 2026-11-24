@@ -225,7 +225,7 @@ const historic = computed(
 
         <section
             v-if="abResults && abResults.length"
-            class="space-y-3 rounded-xl border p-4"
+            class="space-y-3 glass-card p-4"
             aria-labelledby="s-ab"
         >
             <div
@@ -340,7 +340,7 @@ const historic = computed(
             v-if="!campaign.is_historic"
             class="grid grid-cols-2 gap-3 sm:grid-cols-4"
         >
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Aperturas únicas</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.unique_opens) }}
@@ -349,13 +349,13 @@ const historic = computed(
                     }}</span>
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Aperturas totales</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.opens) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Clics únicos</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.unique_clicks) }}
@@ -364,7 +364,7 @@ const historic = computed(
                     }}</span>
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Clics totales</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.clicks) }}
@@ -375,7 +375,7 @@ const historic = computed(
             v-if="!campaign.is_historic && stats.sent"
             class="grid grid-cols-2 gap-3 sm:grid-cols-5"
         >
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">
                     Entregados (proveedor)
                 </dt>
@@ -383,25 +383,25 @@ const historic = computed(
                     {{ number(stats.delivered) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Rebotes duros</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.hard_bounces) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Rebotes suaves</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.soft_bounces) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Quejas de spam</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.complaints) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Bajas</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(stats.unsubscribes) }}
@@ -412,25 +412,25 @@ const historic = computed(
             </div>
         </dl>
         <dl v-else-if="historic" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Enviados</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(historic.emails_sent ?? 0) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Aperturas únicas</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(historic.opens?.unique_opens ?? 0) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Clics únicos</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(historic.clicks?.unique_subscriber_clicks ?? 0) }}
                 </dd>
             </div>
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Bajas</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(historic.unsubscribed ?? 0) }}
@@ -445,7 +445,7 @@ const historic = computed(
 
         <section
             v-if="canReport && timeline?.points.length"
-            class="grid gap-6 rounded-xl border p-4 md:grid-cols-2"
+            class="grid gap-6 glass-card p-4 md:grid-cols-2"
             aria-label="Actividad en el tiempo"
         >
             <BarChart
@@ -466,7 +466,7 @@ const historic = computed(
             aria-labelledby="s-links"
         >
             <h2 id="s-links" class="font-medium">Enlaces más visitados</h2>
-            <div class="overflow-x-auto rounded-xl border">
+            <div class="overflow-x-auto glass-card">
                 <table class="w-full text-sm">
                     <thead class="bg-muted/50 text-left text-muted-foreground">
                         <tr>
@@ -542,7 +542,7 @@ const historic = computed(
                     >
                 </div>
             </div>
-            <div class="overflow-x-auto rounded-xl border">
+            <div class="overflow-x-auto glass-card">
                 <table class="w-full text-sm">
                     <thead class="bg-muted/50 text-left text-muted-foreground">
                         <tr>

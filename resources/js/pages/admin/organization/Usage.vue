@@ -83,7 +83,7 @@ const meters = computed(() => [
             <section
                 v-for="m in meters"
                 :key="m.key"
-                class="space-y-3 rounded-xl border p-4"
+                class="space-y-3 glass-card p-4"
                 :aria-labelledby="`u-${m.key}`"
             >
                 <div class="flex items-baseline justify-between gap-2">
@@ -128,7 +128,7 @@ const meters = computed(() => [
             </section>
         </div>
 
-        <section class="rounded-xl border p-4" aria-label="Envíos por mes">
+        <section class="glass-card p-4" aria-label="Envíos por mes">
             <BarChart
                 title="Envíos por mes"
                 :points="
@@ -143,7 +143,7 @@ const meters = computed(() => [
 
         <section class="space-y-2" aria-labelledby="u-conn">
             <h2 id="u-conn" class="font-medium">Conexiones de envío (hoy)</h2>
-            <ul class="divide-y rounded-xl border">
+            <ul class="divide-y glass-card">
                 <li
                     v-for="c in connections"
                     :key="c.id"

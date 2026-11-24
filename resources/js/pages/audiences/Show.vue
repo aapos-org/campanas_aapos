@@ -203,17 +203,13 @@ const deleteAudience = () =>
         </div>
 
         <dl class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <div class="rounded-xl border p-3">
+            <div class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">Total</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(total) }}
                 </dd>
             </div>
-            <div
-                v-for="s in statuses"
-                :key="s.value"
-                class="rounded-xl border p-3"
-            >
+            <div v-for="s in statuses" :key="s.value" class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">{{ s.label }}</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(counts[s.value] ?? 0) }}
@@ -290,7 +286,7 @@ const deleteAudience = () =>
                 <li
                     v-for="row in subscriptions.data"
                     :key="row.subscription_id"
-                    class="flex gap-3 rounded-xl border p-4"
+                    class="flex gap-3 glass-card p-4"
                 >
                     <input
                         v-if="canManage"
@@ -329,7 +325,7 @@ const deleteAudience = () =>
             </ul>
 
             <!-- Desktop: table -->
-            <div class="hidden overflow-x-auto rounded-xl border lg:block">
+            <div class="hidden overflow-x-auto glass-card lg:block">
                 <table class="w-full text-sm">
                     <caption class="sr-only">
                         Contactos de la audiencia
@@ -418,7 +414,7 @@ const deleteAudience = () =>
 
         <div
             v-if="canManage && selected.length"
-            class="sticky bottom-4 z-10 flex flex-col gap-3 rounded-xl border bg-background p-3 shadow-lg sm:flex-row sm:items-end"
+            class="sticky bottom-4 z-10 flex flex-col gap-3 glass-card bg-background p-3 shadow-lg sm:flex-row sm:items-end"
             role="region"
             aria-label="Acciones en bloque"
         >

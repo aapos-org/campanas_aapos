@@ -117,7 +117,7 @@ watchDebounced(
                 <li
                     v-for="user in users.data"
                     :key="user.id"
-                    class="rounded-xl border p-4"
+                    class="glass-card p-4"
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
@@ -151,7 +151,7 @@ watchDebounced(
             </ul>
 
             <!-- Desktop: table -->
-            <div class="hidden overflow-x-auto rounded-xl border lg:block">
+            <div class="hidden overflow-x-auto glass-card lg:block">
                 <table class="w-full text-sm">
                     <caption class="sr-only">
                         Lista de usuarios

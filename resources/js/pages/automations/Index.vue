@@ -77,7 +77,7 @@ const statusLabel = { draft: 'Borrador', active: 'Activa', paused: 'En pausa' };
             <li
                 v-for="a in automations"
                 :key="a.id"
-                class="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+                class="flex flex-col gap-3 glass-card p-4 sm:flex-row sm:items-center sm:justify-between"
             >
                 <div class="min-w-0 space-y-1">
                     <p class="flex items-center gap-2 font-medium">

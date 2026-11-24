@@ -57,13 +57,13 @@ class AbTester
     {
         $sent = DB::table('campaign_recipients')->where('campaign_id', $campaign->id)
             ->whereNotNull('variant_id')->where('status', 'sent')
-            ->when($campaign->ab_decided_at, fn ($q, $at) => $q->where('sent_at', '<', $at))
+            ->when($campaign->ab_decided_at, fn ($q, $at) => $q->where('sent_at', '<=', $at))
             ->selectRaw('variant_id, count(*) as total')->groupBy('variant_id')->pluck('total', 'variant_id');
 
         $events = DB::table('email_events as e')
             ->join('campaign_recipients as cr', 'cr.id', '=', 'e.campaign_recipient_id')
             ->where('e.campaign_id', $campaign->id)->whereNotNull('cr.variant_id')
-            ->when($campaign->ab_decided_at, fn ($q, $at) => $q->where('cr.sent_at', '<', $at))
+            ->when($campaign->ab_decided_at, fn ($q, $at) => $q->where('cr.sent_at', '<=', $at))
             ->selectRaw("cr.variant_id, count(DISTINCT e.campaign_recipient_id) FILTER (WHERE e.type = 'open') as opens")
             ->selectRaw("count(DISTINCT e.campaign_recipient_id) FILTER (WHERE e.type = 'click') as clicks")
             ->groupBy('cr.variant_id')->get()->keyBy('variant_id');

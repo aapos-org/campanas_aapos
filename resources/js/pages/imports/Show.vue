@@ -106,7 +106,7 @@ const stats = [
         </section>
 
         <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div v-for="s in stats" :key="s.key" class="rounded-xl border p-3">
+            <div v-for="s in stats" :key="s.key" class="glass-card p-3">
                 <dt class="text-xs text-muted-foreground">{{ s.label }}</dt>
                 <dd class="text-xl font-semibold tabular-nums">
                     {{ number(props.import[s.key]) }}
