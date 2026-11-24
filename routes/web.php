@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\ApiTokenController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\OrganizationController;
+use App\Http\Controllers\Admin\OutgoingWebhookController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WebhookCallController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
@@ -179,6 +181,19 @@ Route::middleware(['auth'])->group(function () {
     });
     Route::get('usage', [OrganizationController::class, 'usage'])
         ->middleware('permission:'.Permission::ReportsView->value)->name('usage');
+
+    // Module 8: API tokens and outgoing webhooks.
+    Route::middleware('permission:'.Permission::ApiManage->value)->group(function () {
+        Route::get('admin/api', [ApiTokenController::class, 'index'])->name('admin.api.index');
+        Route::post('admin/api/tokens', [ApiTokenController::class, 'store'])->name('admin.api.tokens.store');
+        Route::delete('admin/api/tokens/{token}', [ApiTokenController::class, 'destroy'])->name('admin.api.tokens.destroy');
+        Route::get('admin/outgoing-webhooks', [OutgoingWebhookController::class, 'index'])->name('admin.outgoing-webhooks.index');
+        Route::post('admin/outgoing-webhooks', [OutgoingWebhookController::class, 'store'])->name('admin.outgoing-webhooks.store');
+        Route::put('admin/outgoing-webhooks/{endpoint}', [OutgoingWebhookController::class, 'update'])->name('admin.outgoing-webhooks.update');
+        Route::delete('admin/outgoing-webhooks/{endpoint}', [OutgoingWebhookController::class, 'destroy'])->name('admin.outgoing-webhooks.destroy');
+        Route::post('admin/outgoing-webhooks/{endpoint}/test', [OutgoingWebhookController::class, 'test'])->middleware('throttle:10,1')->name('admin.outgoing-webhooks.test');
+        Route::post('admin/webhook-deliveries/{delivery}/retry', [OutgoingWebhookController::class, 'retry'])->name('admin.webhook-deliveries.retry');
+    });
 
     // Module 6: automations.
     Route::middleware('permission:'.Permission::CampaignsView->value)->group(function () {

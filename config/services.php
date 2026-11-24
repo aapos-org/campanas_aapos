@@ -60,4 +60,9 @@ return [
         'webhook_token' => env('ELASTICEMAIL_WEBHOOK_TOKEN'),
     ],
 
+    // Public API (/api/v1): requests per minute per token.
+    'api' => [
+        'rate_per_minute' => (int) env('API_RATE_PER_MINUTE', 120),
+    ],
+
 ];

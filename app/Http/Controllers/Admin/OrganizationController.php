@@ -63,7 +63,8 @@ class OrganizationController extends Controller
         $limits = collect(self::LIMIT_KEYS)->mapWithKeys(fn (string $k) => [$k => isset($data['limits'][$k]) ? (int) $data['limits'][$k] : null])->all();
         $before = $organization->only(['name', 'physical_address', 'timezone', 'limits']);
 
-        $organization->update(collect($data)->except('limits')->all() + ['limits' => $limits]);
+        unset($data['limits']);
+        $organization->update($data + ['limits' => $limits]);
 
         Audit::record('organization.updated', 'Datos de la organización modificados', $organization, [
             'before' => $before,

@@ -155,7 +155,7 @@ const limitFields = [
                 <h2 id="s-limits" class="font-medium">Límites de uso</h2>
                 <p class="text-sm text-muted-foreground">
                     Déjalos en blanco para no limitar. Puedes ver el consumo en
-                    Reportes → Uso.
+                    la página Uso del menú.
                 </p>
             </div>
             <div

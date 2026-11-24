@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\ContactStatus;
+use App\Enums\WebhookEvent;
+use App\Services\Webhooks\OutgoingWebhooks;
 use App\Support\Tenancy\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 /**
@@ -38,6 +41,36 @@ class Subscription extends Pivot
     protected $table = 'audience_contact';
 
     public $incrementing = true;
+
+    protected static function booted(): void
+    {
+        // Outgoing webhooks: contact.subscribed / contact.unsubscribed.
+        static::saved(function (self $subscription) {
+            if (! $subscription->wasRecentlyCreated && ! $subscription->wasChanged('status')) {
+                return;
+            }
+
+            $event = match ($subscription->status) {
+                ContactStatus::Subscribed => WebhookEvent::ContactSubscribed,
+                ContactStatus::Unsubscribed => WebhookEvent::ContactUnsubscribed,
+                default => null,
+            };
+
+            if ($event === null) {
+                return;
+            }
+
+            $contact = DB::table('contacts')->where('id', $subscription->contact_id)->first(['id', 'email', 'first_name', 'last_name']);
+            $audience = DB::table('audiences')->where('id', $subscription->audience_id)->first(['id', 'name']);
+
+            app(OutgoingWebhooks::class)->dispatch((int) $subscription->organization_id, $event, [
+                'contact' => $contact !== null ? ['id' => (int) $contact->id, 'email' => (string) $contact->email, 'first_name' => $contact->first_name, 'last_name' => $contact->last_name] : null,
+                'audience' => $audience !== null ? ['id' => (int) $audience->id, 'name' => (string) $audience->name] : null,
+                'status' => $subscription->status->value,
+                'source' => $subscription->consent_source,
+            ]);
+        });
+    }
 
     protected function casts(): array
     {
