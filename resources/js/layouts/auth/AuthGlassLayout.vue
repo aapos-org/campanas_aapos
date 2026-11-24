@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { BarChart3, MailCheck, ShieldCheck } from '@lucide/vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import GlobeVisual from '@/components/auth/GlobeVisual.vue';
 import { home } from '@/routes';
 
@@ -100,20 +99,44 @@ const chips = [
             <div class="w-full max-w-sm animate-rise glass-card p-8 sm:p-9">
                 <Link
                     :href="home()"
-                    class="mb-6 flex animate-rise items-center gap-3"
+                    class="mb-6 flex animate-rise flex-col items-center text-center"
                     style="--rise-index: 1"
+                    aria-label="Ir al inicio"
                 >
                     <span
-                        class="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-2 text-primary-foreground shadow-lg shadow-primary/30"
+                        class="relative mb-3 flex size-24 items-center justify-center"
                     >
-                        <AppLogoIcon class-name="size-6 fill-current" />
+                        <!-- Rotating rings around the seal -->
+                        <span
+                            class="seal-ring absolute inset-0 rounded-full border border-dashed border-[oklch(0.8_0.08_230/0.45)]"
+                            aria-hidden="true"
+                        />
+                        <span
+                            class="seal-arc absolute inset-1.5 rounded-full border-2 border-transparent border-b-[oklch(0.78_0.12_225)]"
+                            aria-hidden="true"
+                        />
+                        <span
+                            class="relative flex size-[4.75rem] items-center justify-center rounded-full bg-white p-1 shadow-[0_0_28px_oklch(0.85_0.12_85/0.55)]"
+                        >
+                            <img
+                                src="/images/logo-aapos-azul.webp"
+                                alt="Asociación Amigos Pro Obras Sociales"
+                                width="88"
+                                height="88"
+                                class="size-full"
+                            />
+                        </span>
                     </span>
-                    <span class="text-lg font-semibold tracking-tight">{{
+                    <span class="text-xl font-semibold tracking-tight">{{
                         appName
                     }}</span>
+                    <span
+                        class="mt-1 text-[10px] font-medium tracking-[0.16em] whitespace-nowrap text-muted-foreground uppercase"
+                        >Asociación Amigos Pro Obras Sociales</span
+                    >
                 </Link>
                 <div
-                    class="mb-6 animate-rise space-y-1"
+                    class="mb-6 animate-rise space-y-1 text-center"
                     style="--rise-index: 2"
                 >
                     <h1 class="text-2xl font-semibold tracking-tight">
@@ -131,7 +154,7 @@ const chips = [
                 class="mt-6 animate-rise text-center text-xs text-muted-foreground"
                 style="--rise-index: 6"
             >
-                Asociación Amigos Pro Obras Sociales · Guatemala
+                Apoyo a las Obras Sociales del Santo Hermano Pedro · Guatemala
             </p>
         </main>
     </div>
@@ -174,6 +197,20 @@ const chips = [
     animation-delay: 0.55s;
 }
 
+.seal-ring {
+    animation: spin 40s linear infinite;
+}
+
+.seal-arc {
+    animation: spin 6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 @keyframes globe-in {
     from {
         opacity: 0;
@@ -206,6 +243,8 @@ const chips = [
 
 @media (prefers-reduced-motion: reduce) {
     .globe-in,
+    .seal-ring,
+    .seal-arc,
     .auth-float,
     .auth-glow,
     .auth-fields :deep(*) {
