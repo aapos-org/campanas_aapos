@@ -4,6 +4,10 @@ namespace App\Providers;
 
 use App\Enums\Permission;
 use App\Models\User;
+use App\Services\Ai\AiProvider;
+use App\Services\Ai\AnthropicProvider;
+use App\Services\Ai\ContentReviewer;
+use App\Services\Ai\ReviewsContent;
 use App\Services\Limits\ContactLimit;
 use App\Support\Tenancy\CurrentOrganization;
 use Carbon\CarbonImmutable;
@@ -23,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(CurrentOrganization::class);
         $this->app->scoped(ContactLimit::class);
+        $this->app->bind(AiProvider::class, AnthropicProvider::class);
+        $this->app->bind(ReviewsContent::class, ContentReviewer::class);
     }
 
     public function boot(): void

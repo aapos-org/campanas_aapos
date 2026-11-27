@@ -65,4 +65,16 @@ return [
         'rate_per_minute' => (int) env('API_RATE_PER_MINUTE', 120),
     ],
 
+    // Writing assistant (Anthropic). Only non-secret defaults live here: the API key, model
+    // and behaviour are configured per organization in Administración → Asistente de IA.
+    'anthropic' => [
+        'base_url' => 'https://api.anthropic.com',
+        'version' => '2026-10-21',
+        'suggested_models' => [
+            ['id' => 'claude-opus-5-5', 'label' => 'Claude Opus 5.5 (recomendado: mejor calidad)'],
+            ['id' => 'claude-sonnet-5-5', 'label' => 'Claude Sonnet 5.5 (equilibrio entre calidad y costo)'],
+            ['id' => 'claude-haiku-5-5', 'label' => 'Claude Haiku 5.5 (el más rápido y económico)'],
+        ],
+    ],
+
 ];

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\Transport\MailTransportFactory;
 use App\Mail\Transport\OutgoingEmail;
 use App\Mail\Transport\TransportException;
+use App\Models\AiAssistantSetting;
 use App\Models\Audience;
 use App\Models\AutomationStep;
 use App\Models\Campaign;
@@ -20,6 +21,7 @@ use App\Models\Segment;
 use App\Models\Tag;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Ai\ContentLint;
 use App\Services\Campaigns\AbTester;
 use App\Services\Campaigns\CampaignRenderer;
 use App\Services\Campaigns\CampaignSender;
@@ -195,8 +197,13 @@ class CampaignController extends Controller
                 'mjml' => $variant ? $variant->mjml : $campaign->mjml,
                 'design' => $variant ? $variant->design : $campaign->design,
                 'html' => $variant ? $variant->html : $campaign->html,
+                // Subject and preheader of the version being edited, for the live review.
+                'review_subject' => (string) ($variant?->subject ?: $campaign->subject),
+                'review_preheader' => $variant?->preheader ?: $campaign->preheader,
             ],
             'variant' => $variant?->label,
+            'assistant' => ContentReviewController::publicConfig(AiAssistantSetting::current(), $request->user()),
+            'mergeTagKeys' => ContentLint::knownTagKeys(),
             'automationId' => $campaign->isAutomation() ? AutomationStep::query()->where('campaign_id', $campaign->id)->value('automation_id') : null,
             'abContent' => $campaign->ab_type === 'content',
             'mergeTags' => MergeTags::all(),

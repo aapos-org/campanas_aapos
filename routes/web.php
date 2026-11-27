@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\AiAssistantController;
 use App\Http\Controllers\Admin\ApiTokenController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\OrganizationController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Admin\WebhookCallController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
 use App\Http\Controllers\Automations\AutomationController;
 use App\Http\Controllers\Campaigns\CampaignController;
+use App\Http\Controllers\Campaigns\ContentReviewController;
 use App\Http\Controllers\Campaigns\TemplateController;
 use App\Http\Controllers\Connections\GoogleOAuthController;
 use App\Http\Controllers\Connections\MailConnectionController;
@@ -28,6 +30,8 @@ use App\Http\Controllers\PublicSite\TrackingController;
 use App\Http\Controllers\PublicSite\WebhookController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Http\Controllers\Segments\SegmentController;
+use App\Http\Middleware\EnsurePasswordConfirmed;
+use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard')->name('home');
@@ -140,6 +144,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('campaigns/{campaign}/content', [CampaignController::class, 'content'])->name('campaigns.content');
         Route::put('campaigns/{campaign}/content', [CampaignController::class, 'updateContent'])->name('campaigns.content.update');
         Route::post('campaigns/{campaign}/template', [CampaignController::class, 'applyTemplate'])->name('campaigns.template');
+        Route::post('campaigns/{campaign}/review-content', ContentReviewController::class)->middleware('throttle:30,1')->name('campaigns.review-content');
         Route::get('campaigns/{campaign}/review', [CampaignController::class, 'review'])->name('campaigns.review');
         Route::post('campaigns/{campaign}/test', [CampaignController::class, 'sendTest'])->middleware('throttle:10,1')->name('campaigns.test');
         Route::post('campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate'])->name('campaigns.duplicate');
@@ -172,6 +177,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('segments/{segment}/edit', [SegmentController::class, 'edit'])->name('segments.edit');
         Route::put('segments/{segment}', [SegmentController::class, 'update'])->name('segments.update');
         Route::delete('segments/{segment}', [SegmentController::class, 'destroy'])->name('segments.destroy');
+    });
+
+    // Writing assistant settings (key, model, behaviour). Behind password confirmation, like Security.
+    Route::middleware('permission:'.Permission::SettingsManage->value)->group(function () {
+        Route::get('admin/ai', [AiAssistantController::class, 'edit'])->middleware(RequirePassword::class)->name('admin.ai.edit');
+        Route::middleware(EnsurePasswordConfirmed::class.':admin.ai.edit')->group(function () {
+            Route::put('admin/ai', [AiAssistantController::class, 'update'])->name('admin.ai.update');
+            Route::put('admin/ai/key', [AiAssistantController::class, 'storeKey'])->middleware('throttle:10,1')->name('admin.ai.key.store');
+            Route::delete('admin/ai/key', [AiAssistantController::class, 'destroyKey'])->name('admin.ai.key.destroy');
+            Route::post('admin/ai/verify', [AiAssistantController::class, 'verify'])->middleware('throttle:10,1')->name('admin.ai.verify');
+        });
     });
 
     // Module 7: organization profile, limits and usage.
