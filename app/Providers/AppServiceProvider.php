@@ -4,7 +4,10 @@ namespace App\Providers;
 
 use App\Enums\Permission;
 use App\Models\User;
+use App\Services\Ai\AiProvider;
+use App\Services\Ai\AnthropicProvider;
 use App\Services\Limits\ContactLimit;
+use App\Services\Webhooks\OutgoingWebhooks;
 use App\Support\Tenancy\CurrentOrganization;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -23,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(CurrentOrganization::class);
         $this->app->scoped(ContactLimit::class);
+        $this->app->scoped(OutgoingWebhooks::class);
+        $this->app->bind(AiProvider::class, AnthropicProvider::class);
     }
 
     public function boot(): void

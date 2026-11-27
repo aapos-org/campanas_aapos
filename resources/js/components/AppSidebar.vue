@@ -7,6 +7,7 @@ import {
     Gauge,
     KeyRound,
     Send,
+    Sparkles,
     BookUser,
     FileText,
     Filter,
@@ -36,6 +37,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard, usage } from '@/routes';
+import { edit as aiEdit } from '@/routes/admin/ai';
 import { index as apiIndex } from '@/routes/admin/api';
 import { index as auditIndex } from '@/routes/admin/audit';
 import { index as outgoingWebhooksIndex } from '@/routes/admin/outgoing-webhooks';
@@ -171,6 +173,12 @@ const navGroups: NavGroup[] = [
                 href: webhooksIndex(),
                 icon: Webhook,
                 permission: 'connections.manage',
+            },
+            {
+                title: 'Asistente de IA',
+                href: aiEdit(),
+                icon: Sparkles,
+                permission: 'settings.manage',
             },
             {
                 title: 'API',
