@@ -26,6 +26,8 @@ class ContentReviewController extends Controller
         $data = $request->validate([
             'html' => ['nullable', 'string', 'max:2000000'],
             'variant' => ['nullable', Rule::in(['A', 'B'])],
+            // The editor's «Aplicar Smart Brevity» switch can turn it off for this review.
+            'smart_brevity' => ['nullable', 'boolean'],
         ]);
 
         $subject = (string) $campaign->subject;
@@ -40,9 +42,16 @@ class ContentReviewController extends Controller
         $settings = AiAssistantSetting::current();
         $organization = $current->getOrFail();
 
+        // The editor's switch can turn Smart Brevity off for this review only (a copy, never saved).
+        $reviewSettings = clone $settings;
+
+        if (($data['smart_brevity'] ?? true) === false) {
+            $reviewSettings->smart_brevity_enabled = false;
+        }
+
         return response()->json(
-            $reviewer->review($subject, $preheader, (string) ($data['html'] ?? ''), $settings, $organization, $user, $campaign->id)
-            + ['usage' => $quota->usage($settings, $organization), 'config' => self::publicConfig($settings, $user)],
+            $reviewer->review($subject, $preheader, (string) ($data['html'] ?? ''), $reviewSettings, $organization, $user, $campaign->id)
+            + ['usage' => $quota->usage($settings, $organization), 'config' => self::publicConfig($settings->exists ? $settings->refresh() : $settings, $user)],
         );
     }
 

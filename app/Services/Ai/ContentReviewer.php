@@ -84,7 +84,10 @@ class ContentReviewer implements ReviewsContent
         $cached = Cache::get($cacheKey);
 
         if (is_array($cached)) {
-            return ['available' => true, 'ai' => $cached, 'cached' => true, 'truncated' => $truncated] + $result;
+            // Re-validated: whatever is in the cache is data, too.
+            $findings = $this->sanitize(['findings' => $cached], $categories, $settings->max_findings);
+
+            return ['available' => true, 'ai' => $findings, 'cached' => true, 'truncated' => $truncated] + $result;
         }
 
         if (($limit = $this->quota->reserve($settings, $organization)) !== null) {
@@ -97,7 +100,12 @@ class ContentReviewer implements ReviewsContent
             $this->quota->release($organization);
 
             if ($response->authFailed) {
-                $settings->forceFill(['status' => 'error', 'last_error' => $response->error])->save();
+                // Only these two columns: $settings may carry per-request overrides.
+                $settings->forceFill(['status' => 'error', 'last_error' => $response->error]);
+
+                if ($settings->exists) {
+                    AiAssistantSetting::query()->whereKey($settings->id)->update(['status' => 'error', 'last_error' => $response->error]);
+                }
             }
 
             return ['reason' => $response->error] + $result;

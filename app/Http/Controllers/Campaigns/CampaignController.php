@@ -197,6 +197,9 @@ class CampaignController extends Controller
                 'mjml' => $variant ? $variant->mjml : $campaign->mjml,
                 'design' => $variant ? $variant->design : $campaign->design,
                 'html' => $variant ? $variant->html : $campaign->html,
+                // Subject and preheader of the version being edited, for the live review.
+                'review_subject' => (string) ($variant?->subject ?: $campaign->subject),
+                'review_preheader' => $variant?->preheader ?: $campaign->preheader,
             ],
             'variant' => $variant?->label,
             'assistant' => ContentReviewController::publicConfig(AiAssistantSetting::current(), $request->user()),

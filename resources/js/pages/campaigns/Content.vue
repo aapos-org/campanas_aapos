@@ -3,18 +3,26 @@ import type { FormDataConvertible } from '@inertiajs/core';
 import { Head, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import { ArrowRight, Code, LayoutTemplate, Save } from '@lucide/vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import CampaignSteps from '@/components/CampaignSteps.vue';
+import ContentReviewPanel from '@/components/email/ContentReviewPanel.vue';
 import EmailEditor from '@/components/email/EmailEditor.vue';
 import HtmlEditor from '@/components/email/HtmlEditor.vue';
 import MergeTagList from '@/components/email/MergeTagList.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { useContentReview } from '@/composables/useContentReview';
 import { requestJson } from '@/lib/http';
-import { index, review, template as applyTemplate } from '@/routes/campaigns';
+import {
+    index,
+    review,
+    reviewContent,
+    template as applyTemplate,
+} from '@/routes/campaigns';
 import { content as contentPage } from '@/routes/campaigns';
 import { update as updateContent } from '@/routes/campaigns/content';
 import { edit as automationEdit } from '@/routes/automations';
+import type { AssistantConfig } from '@/types';
 
 const props = defineProps<{
     campaign: {
@@ -26,7 +34,11 @@ const props = defineProps<{
         html: string | null;
         subject: string | null;
         kind: 'regular' | 'automation';
+        review_subject: string;
+        review_preheader: string | null;
     };
+    assistant: AssistantConfig;
+    mergeTagKeys: string[];
     variant: string | null;
     automationId: number | null;
     abContent: boolean;
@@ -77,6 +89,40 @@ const save = (then?: () => void) => {
         .catch((e: Error) => (error.value = e.message))
         .finally(() => (saving.value = false));
 };
+
+// Advisory review of what is in the editor right now (never blocks saving).
+const assistant = useContentReview({
+    url: reviewContent.url(props.campaign.id),
+    variant: props.variant,
+    subject: props.campaign.review_subject,
+    preheader: props.campaign.review_preheader,
+    knownTags: props.mergeTagKeys,
+    config: props.assistant,
+    getHtml: () =>
+        props.campaign.editor === 'visual'
+            ? (visual.value?.getContent()?.html ?? null)
+            : html.value,
+});
+const {
+    config: reviewConfig,
+    status: reviewStatus,
+    reason: reviewReason,
+    pausedReason,
+    localFindings,
+    aiFindings,
+    metrics,
+    cached,
+    liveAllowed,
+    live,
+    liveOn,
+    smartBrevity,
+} = assistant;
+
+watch(html, () => assistant.notifyChange());
+
+if (props.campaign.editor === 'html' && hasContent) {
+    assistant.runLocal();
+}
 
 const start = (data: { template_id?: number; base?: string }) =>
     router.post(applyTemplate.url(props.campaign.id), data);
@@ -225,16 +271,40 @@ const start = (data: { template_id?: number; base?: string }) =>
                 baja y preferencias.
             </p>
             <div
-                v-if="campaign.editor === 'visual'"
-                class="h-[calc(100vh-280px)] min-h-[600px]"
+                class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start"
             >
-                <EmailEditor
-                    ref="visual"
-                    :mjml="campaign.mjml"
-                    :design="campaign.design"
+                <div
+                    v-if="campaign.editor === 'visual'"
+                    class="h-[calc(100vh-280px)] min-h-[600px]"
+                >
+                    <EmailEditor
+                        ref="visual"
+                        :mjml="campaign.mjml"
+                        :design="campaign.design"
+                        @ready="assistant.runLocal()"
+                        @change="assistant.notifyChange()"
+                    />
+                </div>
+                <HtmlEditor v-else v-model="html" />
+                <ContentReviewPanel
+                    class="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
+                    :config="reviewConfig"
+                    :status="reviewStatus"
+                    :reason="reviewReason"
+                    :paused-reason="pausedReason"
+                    :local-findings="localFindings"
+                    :ai-findings="aiFindings"
+                    :metrics="metrics"
+                    :cached="cached"
+                    :live-allowed="liveAllowed"
+                    :live="live"
+                    :live-on="liveOn"
+                    :smart-brevity="smartBrevity"
+                    @update:live-on="assistant.setLive"
+                    @update:smart-brevity="(v) => (smartBrevity = v)"
+                    @review-now="assistant.review(true)"
                 />
             </div>
-            <HtmlEditor v-else v-model="html" />
         </template>
     </div>
 </template>

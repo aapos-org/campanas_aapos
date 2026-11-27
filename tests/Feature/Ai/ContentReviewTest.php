@@ -2,11 +2,14 @@
 
 use App\Enums\Role;
 use App\Models\AiAssistantSetting;
+use App\Models\AuditLog;
 use App\Models\Campaign;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 
 const BODY = '<p>Querido amigo, este diciembre las <strong>Obras Sociales del Santo Hermano Pedro</strong> atendieron a 1,200 personas. Con tu donativo llegamos a más familias.</p><p><a href="https://amigosproobras.org/donar">Dona hoy</a></p>';
@@ -162,4 +165,49 @@ it('is only for people who can edit campaigns, with a request limit', function (
         review($this, '<p>Hola</p>');
     }
     review($this, '<p>Hola</p>')->assertTooManyRequests();
+});
+
+it('turns Smart Brevity off for one review without saving it', function () {
+    $settings = assistant();
+    aiAnswer([]);
+
+    review($this, BODY, ['smart_brevity' => false])->assertOk()->assertJsonPath('config.smart_brevity_enabled', true);
+
+    Http::assertSent(fn (Request $r) => ! str_contains((string) $r['system'], 'Smart Brevity')
+        && ! in_array('smart_brevity', $r['output_config']['format']['schema']['properties']['findings']['items']['properties']['category']['enum'], true));
+    expect($settings->fresh()->smart_brevity_enabled)->toBeTrue();
+});
+
+it('gives the editor the public assistant settings and never the key', function () {
+    assistant();
+
+    $this->actingAs($this->editor)->get(route('campaigns.content', $this->campaign))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('assistant.ai_available', true)
+            ->where('assistant.can_configure', false)
+            ->has('mergeTagKeys')
+            ->etc());
+
+    $html = $this->actingAs($this->editor)->get(route('campaigns.content', $this->campaign))->getContent();
+    expect($html)->not->toContain('sk-ant-api03')->not->toContain('WXYZ');
+});
+
+it('never writes the key to logs or the audit trail', function () {
+    $logged = [];
+    Event::listen(MessageLogged::class, function (MessageLogged $e) use (&$logged) {
+        $logged[] = $e->message.json_encode($e->context);
+    });
+    assistant();
+    Http::fake(['api.anthropic.com/*' => Http::sequence()
+        ->push(['id' => 'msg_1', 'type' => 'message', 'role' => 'assistant', 'model' => 'claude-opus-5-5', 'stop_reason' => 'end_turn', 'content' => [['type' => 'text', 'text' => '{"findings":[]}']]])
+        ->push(['type' => 'error', 'error' => ['type' => 'authentication_error', 'message' => 'invalid x-api-key']], 401)]);
+
+    review($this)->assertOk();
+    review($this, BODY.'<p>Un párrafo más para que el contenido cambie y no salga de la caché.</p>')->assertOk();
+
+    $audit = AuditLog::query()->get()->map(fn (AuditLog $a) => $a->description.json_encode($a->properties))->implode(' ');
+    expect(implode(' ', $logged))->not->toContain('sk-ant-api03')
+        ->and($audit)->toContain('Revisión de contenido con IA')->not->toContain('sk-ant-api03')
+        ->and(AiAssistantSetting::query()->first()->status)->toBe('error');
 });

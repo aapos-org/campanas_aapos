@@ -33,7 +33,9 @@ class ContentLint
         $xpath = new DOMXPath($dom);
 
         foreach (iterator_to_array($xpath->query('//script|//style|//head|//title') ?: []) as $node) {
-            $node->parentNode?->removeChild($node);
+            if ($node instanceof DOMElement) {
+                $node->parentNode?->removeChild($node);
+            }
         }
 
         $links = [];
@@ -53,6 +55,10 @@ class ContentLint
         // Paragraph-like blocks (MJML compiles text into <div>s inside tables).
         $paragraphs = [];
         foreach ($xpath->query('//p | //li | //h1 | //h2 | //h3 | //td[not(.//td) and not(.//p) and not(.//div)] | //div[not(.//div) and not(.//p) and not(.//table)]') ?: [] as $block) {
+            if (! $block instanceof DOMElement) {
+                continue;
+            }
+
             $text = $this->clean($block->textContent);
 
             if ($text !== '') {
@@ -60,13 +66,13 @@ class ContentLint
             }
         }
 
-        $hasBold = (bool) $xpath->query('//strong | //b | //*[contains(translate(@style, "BOLD", "bold"), "font-weight:bold") or contains(@style, "font-weight: bold") or contains(@style, "font-weight:700") or contains(@style, "font-weight: 700")]')?->length;
+        $hasBold = $this->matches($xpath, '//strong | //b | //*[contains(translate(@style, "BOLD", "bold"), "font-weight:bold") or contains(@style, "font-weight: bold") or contains(@style, "font-weight:700") or contains(@style, "font-weight: 700")]');
 
         return [
             'text' => $this->clean($dom->textContent),
             'links' => $links,
             'paragraphs' => array_values(array_unique($paragraphs)),
-            'has_bullets' => (bool) $xpath->query('//ul | //ol')?->length,
+            'has_bullets' => $this->matches($xpath, '//ul | //ol'),
             'has_bold' => $hasBold,
             'images_without_alt' => $imagesWithoutAlt,
         ];
@@ -197,9 +203,17 @@ class ContentLint
         return array_values(array_unique($keys));
     }
 
+    private function matches(DOMXPath $xpath, string $expression): bool
+    {
+        $nodes = $xpath->query($expression);
+
+        return $nodes !== false && $nodes->length > 0;
+    }
+
     private function wordCount(string $text): int
     {
-        return preg_match_all('/[\p{L}\p{N}][\p{L}\p{N}\'’-]*/u', $text);
+        // false only on a regex error (e.g. invalid UTF-8): count nothing.
+        return preg_match_all('/[\p{L}\p{N}][\p{L}\p{N}\'’-]*/u', $text) ?: 0;
     }
 
     private function clean(string $text): string

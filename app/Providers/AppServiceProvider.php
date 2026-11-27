@@ -9,7 +9,6 @@ use App\Services\Ai\AnthropicProvider;
 use App\Services\Ai\ContentReviewer;
 use App\Services\Ai\ReviewsContent;
 use App\Services\Limits\ContactLimit;
-use App\Services\Webhooks\OutgoingWebhooks;
 use App\Support\Tenancy\CurrentOrganization;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -28,7 +27,6 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(CurrentOrganization::class);
         $this->app->scoped(ContactLimit::class);
-        $this->app->scoped(OutgoingWebhooks::class);
         $this->app->bind(AiProvider::class, AnthropicProvider::class);
         $this->app->bind(ReviewsContent::class, ContentReviewer::class);
     }
