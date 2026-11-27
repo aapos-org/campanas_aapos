@@ -6,6 +6,8 @@ use App\Enums\Permission;
 use App\Models\User;
 use App\Services\Ai\AiProvider;
 use App\Services\Ai\AnthropicProvider;
+use App\Services\Ai\ContentReviewer;
+use App\Services\Ai\ReviewsContent;
 use App\Services\Limits\ContactLimit;
 use App\Services\Webhooks\OutgoingWebhooks;
 use App\Support\Tenancy\CurrentOrganization;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(ContactLimit::class);
         $this->app->scoped(OutgoingWebhooks::class);
         $this->app->bind(AiProvider::class, AnthropicProvider::class);
+        $this->app->bind(ReviewsContent::class, ContentReviewer::class);
     }
 
     public function boot(): void

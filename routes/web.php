@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\WebhookCallController;
 use App\Http\Controllers\Auth\AcceptInvitationController;
 use App\Http\Controllers\Automations\AutomationController;
 use App\Http\Controllers\Campaigns\CampaignController;
+use App\Http\Controllers\Campaigns\ContentReviewController;
 use App\Http\Controllers\Campaigns\TemplateController;
 use App\Http\Controllers\Connections\GoogleOAuthController;
 use App\Http\Controllers\Connections\MailConnectionController;
@@ -143,6 +144,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('campaigns/{campaign}/content', [CampaignController::class, 'content'])->name('campaigns.content');
         Route::put('campaigns/{campaign}/content', [CampaignController::class, 'updateContent'])->name('campaigns.content.update');
         Route::post('campaigns/{campaign}/template', [CampaignController::class, 'applyTemplate'])->name('campaigns.template');
+        Route::post('campaigns/{campaign}/review-content', ContentReviewController::class)->middleware('throttle:30,1')->name('campaigns.review-content');
         Route::get('campaigns/{campaign}/review', [CampaignController::class, 'review'])->name('campaigns.review');
         Route::post('campaigns/{campaign}/test', [CampaignController::class, 'sendTest'])->middleware('throttle:10,1')->name('campaigns.test');
         Route::post('campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate'])->name('campaigns.duplicate');

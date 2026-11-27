@@ -58,6 +58,16 @@ class AiAssistantSetting extends Model
         'status' => 'unverified',
         'provider' => 'anthropic',
         'model' => self::DEFAULT_MODEL,
+        // Same defaults as the migration, so an unsaved row behaves like a saved one.
+        'enabled' => false,
+        'live_review_enabled' => true,
+        'manual_review_enabled' => true,
+        'debounce_ms' => 1800,
+        'min_chars_change' => 20,
+        'max_findings' => 8,
+        'smart_brevity_enabled' => true,
+        'smart_brevity_max_words' => 300,
+        'timeout_seconds' => 30,
     ];
 
     protected function casts(): array
